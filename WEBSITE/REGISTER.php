@@ -23,9 +23,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     }
 
     // INSERT QUERY (firstname and lastname added)
-    $stmt = $conn->prepare("INSERT INTO users (firstname, lastname, username, password, department, position, roles) VALUES (?, ?, ?, ?, ?, ?, ?)");
+    $stmt = $conn->prepare("INSERT INTO users (firstname, lastname, empnumber, username, password, department, position, roles) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
 
-    $stmt->bind_param("sssssss", $firstname, $lastname, $username, $password, $department, $position, $roles);
+    $stmt->bind_param("ssssssss", $firstname, $lastname, $empnumber, $username, $password, $department, $position, $roles);
 
     if ($stmt->execute()) {
 

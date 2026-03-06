@@ -43,7 +43,7 @@ $modules = $conn->query("SELECT * FROM modules ORDER BY id DESC")->fetch_all(MYS
 <div class="container">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h2>Admin Panel</h2>
-        <a href="INDEX.php" class="btn btn-outline-danger">Logout</a>
+        <a href="INDEX.html" class="btn btn-outline-danger">Logout</a>
     </div>
 
     <div class="card mb-4 shadow-sm">
