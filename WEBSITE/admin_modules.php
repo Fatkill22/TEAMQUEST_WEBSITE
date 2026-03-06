@@ -3,156 +3,107 @@ session_start();
 include "config.php";
 
 if (!isset($_SESSION['username']) || $_SESSION['roles'] != 'admin') {
-    header("Location: INDEX.php");
-    exit();
+    header("Location: INDEX.php"); exit();
 }
 
-/* ADD MODULE */
 if (isset($_POST['add'])) {
-
     $title = $_POST['title'];
     $description = $_POST['description'];
+    $content = $_POST['content'];
     $department = $_POST['department'];
+    $imageName = !empty($_FILES['image']['name']) ? time()."_".$_FILES['image']['name'] : "";
+    $videoName = !empty($_FILES['video']['name']) ? time()."_".$_FILES['video']['name'] : "";
 
-    $imageName = "";
-    $videoName = "";
+    if($imageName) move_uploaded_file($_FILES['image']['tmp_name'], "Images/".$imageName);
+    if($videoName) move_uploaded_file($_FILES['video']['tmp_name'], "Videos/".$videoName);
 
-    if (!empty($_FILES['image']['name'])) {
-        $imageName = time() . "_" . $_FILES['image']['name'];
-        move_uploaded_file($_FILES['image']['tmp_name'], "Images/" . $imageName);
-    }
-
-    if (!empty($_FILES['video']['name'])) {
-        $videoName = time() . "_" . $_FILES['video']['name'];
-        move_uploaded_file($_FILES['video']['tmp_name'], "Videos/" . $videoName);
-    }
-
-    $stmt = $conn->prepare("INSERT INTO modules (title, description, image, video, department) VALUES (?, ?, ?, ?, ?)");
-    $stmt->bind_param("sssss", $title, $description, $imageName, $videoName, $department);
+    // FIXED: Added 'content' to the column list and the bind_param
+    $stmt = $conn->prepare("INSERT INTO modules (title, description, content, image, video, department) VALUES (?, ?, ?, ?, ?, ?)");
+    $stmt->bind_param("ssssss", $title, $description, $content, $imageName, $videoName, $department);
     $stmt->execute();
 }
 
-/* DELETE MODULE */
 if (isset($_GET['delete'])) {
-
     $id = $_GET['delete'];
-
-    $get = $conn->prepare("SELECT image, video FROM modules WHERE id=?");
-    $get->bind_param("i", $id);
-    $get->execute();
-    $row = $get->get_result()->fetch_assoc();
-
-    if ($row) {
-        if (!empty($row['image']) && file_exists("Images/" . $row['image'])) {
-            unlink("Images/" . $row['image']);
-        }
-        if (!empty($row['video']) && file_exists("Videos/" . $row['video'])) {
-            unlink("Videos/" . $row['video']);
-        }
-    }
-
     $stmt = $conn->prepare("DELETE FROM modules WHERE id=?");
     $stmt->bind_param("i", $id);
     $stmt->execute();
+    header("Location: admin_modules.php");
 }
 
-/* UPDATE MODULE */
-if (isset($_POST['update'])) {
-
-    $id = $_POST['id'];
-    $title = $_POST['title'];
-    $description = $_POST['description'];
-    $department = $_POST['department'];
-
-    $get = $conn->prepare("SELECT image, video FROM modules WHERE id=?");
-    $get->bind_param("i", $id);
-    $get->execute();
-    $current = $get->get_result()->fetch_assoc();
-
-    $imageName = $current['image'];
-    $videoName = $current['video'];
-
-    if (!empty($_FILES['image']['name'])) {
-        if (!empty($imageName) && file_exists("Images/" . $imageName)) {
-            unlink("Images/" . $imageName);
-        }
-        $imageName = time() . "_" . $_FILES['image']['name'];
-        move_uploaded_file($_FILES['image']['tmp_name'], "Images/" . $imageName);
-    }
-
-    if (!empty($_FILES['video']['name'])) {
-        if (!empty($videoName) && file_exists("Videos/" . $videoName)) {
-            unlink("Videos/" . $videoName);
-        }
-        $videoName = time() . "_" . $_FILES['video']['name'];
-        move_uploaded_file($_FILES['video']['tmp_name'], "Videos/" . $videoName);
-    }
-
-    $stmt = $conn->prepare("UPDATE modules SET title=?, description=?, image=?, video=?, department=? WHERE id=?");
-    $stmt->bind_param("sssssi", $title, $description, $imageName, $videoName, $department, $id);
-    $stmt->execute();
-}
-
-$result = $conn->query("SELECT * FROM modules ORDER BY id DESC");
-$modules = $result->fetch_all(MYSQLI_ASSOC);
+$modules = $conn->query("SELECT * FROM modules ORDER BY id DESC")->fetch_all(MYSQLI_ASSOC);
 ?>
-
 <!DOCTYPE html>
 <html>
 <head>
-<title>Admin - Manage Modules</title>
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <title>Admin - Manage Modules</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
 <body class="p-4 bg-light">
-
 <div class="container">
-<h2>Admin Panel - Manage Modules</h2>
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Admin Panel</h2>
+        <a href="INDEX.php" class="btn btn-outline-danger">Logout</a>
+    </div>
 
-<div class="card mb-4">
-<div class="card-header">Add Module</div>
-<div class="card-body">
-<form method="POST" enctype="multipart/form-data">
-<input type="text" name="title" class="form-control mb-2" placeholder="Title" required>
-<textarea name="description" class="form-control mb-2" placeholder="Description" required></textarea>
+    <div class="card mb-4 shadow-sm">
+        <div class="card-header bg-primary text-white fw-bold">Add New Training Module</div>
+        <div class="card-body">
+            <form method="POST" enctype="multipart/form-data">
+                <div class="row">
+                    <div class="col-md-6 mb-2">
+                        <input type="text" name="title" class="form-control" placeholder="Module Title" required>
+                    </div>
+                    <div class="col-md-6 mb-2">
+                        <select name="department" class="form-select" required>
+                            <option value="all">All Departments</option>
+                            <option value="ACCOUNTING">ACCOUNTING</option>
+                            <option value="ASEPH BURN-IN">ASEPH BURN-IN</option>
+                            <option value="CML BURN-IN">CML BURN-IN</option>
+                            <option value="ENGINEERING">ENGINEERING</option>
+                            <option value="HR/ADMIN">HR/ADMIN</option>
+                            <option value="LOGISTICS">LOGISTICS</option>
+                            <option value="MACHINING">MACHINING</option>
+                            <option value="MARKETING">MARKETING/SALES</option>
+                            <option value="MIS">MIS</option>
+                            <option value="PLANNING">PLANNING</option>
+                            <option value="PRODUCTION">PRODUCTION</option>
+                            <option value="PURCHASING">PURCHASING</option>
+                            <option value="QA">QA</option>
+                            <option value="QA/TRAINING">QA/TRAINING</option>
+                            <option value="STOR">STORE</option>
+                            <option value="WAREHOUSE">WAREHOUSE</option>
+                        </select>
+                    </div>
+                </div>
+                <textarea name="description" class="form-control mb-2" placeholder="Short Summary (shown on cards)" required></textarea>
+                <textarea name="content" class="form-control mb-2" placeholder="Full Detailed Information" rows="6"></textarea>
+                <div class="row mb-3">
+                    <div class="col">
+                        <label class="form-label">Thumbnail Image</label>
+                        <input type="file" name="image" class="form-control">
+                    </div>
+                    <div class="col">
+                        <label class="form-label">Training Video</label>
+                        <input type="file" name="video" class="form-control">
+                    </div>
+                </div>
+                <button type="submit" name="add" class="btn btn-success w-100">Publish Module</button>
+            </form>
+        </div>
+    </div>
 
-<select name="department" class="form-control mb-2" required>
-<option value="">Select Department</option>
-<option value="A">A</option>
-<option value="B">B</option>
-<option value="C">C</option>
-</select>
-
-<input type="file" name="image" class="form-control mb-2">
-<input type="file" name="video" class="form-control mb-2">
-
-<button type="submit" name="add" class="btn btn-primary">Add Module</button>
-</form>
-</div>
-</div>
-
-<h4>Existing Modules</h4>
-
-<table class="table table-bordered">
-<tr>
-<th>ID</th>
-<th>Title</th>
-<th>Department</th>
-<th>Action</th>s
-</tr>
-
-<?php foreach ($modules as $module) { ?>
-<tr>
-<td><?php echo $module['id']; ?></td>
-<td><?php echo $module['title']; ?></td>
-<td><?php echo $module['department']; ?></td>
-<td>
-<a href="?delete=<?php echo $module['id']; ?>" class="btn btn-danger btn-sm">Delete</a>
-</td>
-</tr>
-<?php } ?>
-
-</table>
-
+    <h4>Existing Modules</h4>
+    <table class="table table-hover bg-white shadow-sm">
+        <thead class="table-dark"><tr><th>Title</th><th>Dept</th><th>Action</th></tr></thead>
+        <?php foreach ($modules as $m) { ?>
+        <tr>
+            <td><?= htmlspecialchars($m['title']) ?></td>
+            <td><?= htmlspecialchars($m['department']) ?></td>
+            <td><a href="?delete=<?= $m['id'] ?>" class="btn btn-danger btn-sm" onclick="return confirm('Delete this module?')">Delete</a></td>
+        </tr>
+        <?php } ?>
+    </table>
 </div>
 </body>
 </html>
