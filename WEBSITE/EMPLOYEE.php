@@ -2,7 +2,7 @@
 session_start();
 include "config.php";
 
-// Make sure user is logged in
+
 if (!isset($_SESSION['username'])) {
     header("Location: INDEX.php");
     exit();
@@ -10,7 +10,7 @@ if (!isset($_SESSION['username'])) {
 
 $dept = $_SESSION['department'];
 
-// Fetch modules specific to user's department OR 'all'
+
 $modules = [];
 $stmt = $conn->prepare("SELECT * FROM modules WHERE department = ? OR department = 'all' ORDER BY id DESC");
 $stmt->bind_param("s", $dept);
@@ -62,7 +62,7 @@ $conn->close();
             text-align: center;
             background-color: #f9f9f9;
             transition: transform 0.3s;
-            height: 100%; /* Ensures uniform height in the grid */
+            height: 100%; 
         }
 
         .module-card:hover { 
