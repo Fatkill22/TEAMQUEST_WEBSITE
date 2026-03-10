@@ -6,6 +6,7 @@ if (!isset($_SESSION['username']) || $_SESSION['roles'] != 'admin') {
     header("Location: INDEX.php"); exit();
 }
 
+// Handle Adding Modules
 if (isset($_POST['add'])) {
     $title = $_POST['title'];
     $description = $_POST['description'];
@@ -17,18 +18,19 @@ if (isset($_POST['add'])) {
     if($imageName) move_uploaded_file($_FILES['image']['tmp_name'], "Images/".$imageName);
     if($videoName) move_uploaded_file($_FILES['video']['tmp_name'], "Videos/".$videoName);
 
-    // FIXED: Added 'content' to the column list and the bind_param
     $stmt = $conn->prepare("INSERT INTO modules (title, description, content, image, video, department) VALUES (?, ?, ?, ?, ?, ?)");
     $stmt->bind_param("ssssss", $title, $description, $content, $imageName, $videoName, $department);
     $stmt->execute();
 }
 
+// Handle Deleting Modules
 if (isset($_GET['delete'])) {
     $id = $_GET['delete'];
     $stmt = $conn->prepare("DELETE FROM modules WHERE id=?");
     $stmt->bind_param("i", $id);
     $stmt->execute();
     header("Location: admin_modules.php");
+    exit();
 }
 
 $modules = $conn->query("SELECT * FROM modules ORDER BY id DESC")->fetch_all(MYSQLI_ASSOC);
@@ -77,7 +79,7 @@ $modules = $conn->query("SELECT * FROM modules ORDER BY id DESC")->fetch_all(MYS
                     </div>
                 </div>
                 <textarea name="description" class="form-control mb-2" placeholder="Short Summary (shown on cards)" required></textarea>
-                <textarea name="content" class="form-control mb-2" placeholder="Full Detailed Information" rows="6"></textarea>
+                <textarea name="content" class="form-control mb-2" placeholder="Full Detailed Information (The Template Content)" rows="6"></textarea>
                 <div class="row mb-3">
                     <div class="col">
                         <label class="form-label">Thumbnail Image</label>
@@ -95,14 +97,26 @@ $modules = $conn->query("SELECT * FROM modules ORDER BY id DESC")->fetch_all(MYS
 
     <h4>Existing Modules</h4>
     <table class="table table-hover bg-white shadow-sm">
-        <thead class="table-dark"><tr><th>Title</th><th>Dept</th><th>Action</th></tr></thead>
-        <?php foreach ($modules as $m) { ?>
-        <tr>
-            <td><?= htmlspecialchars($m['title']) ?></td>
-            <td><?= htmlspecialchars($m['department']) ?></td>
-            <td><a href="?delete=<?= $m['id'] ?>" class="btn btn-danger btn-sm" onclick="return confirm('Delete this module?')">Delete</a></td>
-        </tr>
-        <?php } ?>
+        <thead class="table-dark">
+            <tr>
+                <th>Title</th>
+                <th>Dept</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            <?php foreach ($modules as $m) { ?>
+            <tr>
+                <td><?= htmlspecialchars($m['title']) ?></td>
+                <td><?= htmlspecialchars($m['department']) ?></td>
+                <td>
+                    <a href="manage_exam.php?module_id=<?= $m['id'] ?>" class="btn btn-info btn-sm text-white">Manage Exam</a>
+                    <a href="edit_module.php?id=<?= $m['id'] ?>" class="btn btn-warning btn-sm">Edit</a>
+                    <a href="?delete=<?= $m['id'] ?>" class="btn btn-danger btn-sm" onclick="return confirm('Delete this module?')">Delete</a>
+                </td>
+            </tr>
+            <?php } ?>
+        </tbody>
     </table>
 </div>
 </body>
