@@ -27,6 +27,8 @@ if (isset($_POST['add'])) {
     $stmt->bind_param("ssssss", $title, $description, $content, $imageName, $videoName, $department);
     $stmt->execute();
     $stmt->close();
+    header("Location: admin_modules.php?tab=admin&added=1");
+    exit();
 }
 
 if (isset($_GET['reset_user']) && isset($_GET['mid'])) {
@@ -36,138 +38,393 @@ if (isset($_GET['reset_user']) && isset($_GET['mid'])) {
     $stmt->bind_param("si", $user_to_reset, $mid);
     $stmt->execute();
     $stmt->close();
-    header("Location: admin_modules.php#users");
+    header("Location: admin_modules.php?tab=users&reset=1");
     exit();
 }
 
 if (isset($_GET['delete'])) {
     $id = (int)$_GET['delete'];
     $conn->query("DELETE FROM modules WHERE id=$id");
-    header("Location: admin_modules.php");
+    header("Location: admin_modules.php?tab=admin&deleted=1");
     exit();
 }
 
 $modules = $conn->query("SELECT * FROM modules ORDER BY id DESC")->fetch_all(MYSQLI_ASSOC);
-?>
 
+// ── Admin stat queries ────────────────────────────────────
+$total_users_res  = $conn->query("SELECT COUNT(*) as cnt FROM users");
+$total_users      = $total_users_res ? (int)$total_users_res->fetch_assoc()['cnt'] : 0;
+
+$total_modules = count($modules);
+
+$pass_res    = $conn->query("SELECT score, total_questions FROM exam_results WHERE total_questions > 0");
+$total_exams = 0; $passed = 0;
+if ($pass_res) {
+    while ($er = $pass_res->fetch_assoc()) {
+        $total_exams++;
+        if ($er['total_questions'] > 0 && ($er['score'] / $er['total_questions']) >= 0.7) $passed++;
+    }
+}
+$pass_rate = $total_exams > 0 ? round(($passed / $total_exams) * 100) : 0;
+
+$gauge_cnt_res   = $conn->query("SELECT COUNT(*) as cnt FROM exam_results WHERE total_questions = 50");
+$gauge_cnt       = $gauge_cnt_res ? (int)$gauge_cnt_res->fetch_assoc()['cnt'] : 0;
+
+$admin_user = $_SESSION['username'];
+$avatar     = strtoupper(substr($admin_user, 0, 1));
+?>
 <!doctype html>
 <html lang="en">
 <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Admin Panel - TeamQuest</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <style>
-        .logo img { height: 70px; width: auto; }
-        .logo { background-color: blue; padding: 10px; }
-        .Homepage-Tab { background-image: url("Images/TeamQuest.jpg"); background-size: cover; background-position: center; min-height: 500px; display: flex; justify-content: center; align-items: center; }
-        .nav-tabs .nav-link { color: #000; font-weight: bold; }
-        .nav-tabs .nav-link.active { background-color: #fff; border-bottom: none; }
-        .admin-container { background-color: white; border-radius: 10px; padding: 30px; margin-top: 20px; border: 1px solid #ddd; }
-    </style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Admin Panel — TeamQuest</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="assets/css/styles.css">
 </head>
-<body class="bg-light">
+<body>
+<div class="tq-shell">
 
-<div class="logo text-white"><img src="Images/Logo.png" alt="Company Logo"></div>
-
-<ul class="nav nav-tabs" id="myTab" role="tablist">
-    <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#home">Home</button></li>
-    <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#admin">Manage Modules</button></li>
-    <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#gauge-admin">Manage Gauge Study</button></li>
-    <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#users">User Attempts</button></li>
-    <li class="nav-item ms-auto"><a href="LOGOUT.php" class="nav-link text-danger">Logout (Admin: <?= $_SESSION['username'] ?>)</a></li>
-</ul>
-
-<div class="tab-content">
-    <div class="tab-pane fade show active" id="home">
-        <div class="Homepage-Tab"><button type="button" class="btn btn-primary btn-lg shadow-lg" onclick="bootstrap.Tab.getOrCreateInstance(document.querySelector('button[data-bs-target=\'#admin\']')).show()">Manage Training System</button></div>
+  <!-- TOPBAR -->
+  <header class="tq-topbar">
+    <img src="Images/Logo.png" class="tq-logo" alt="TeamQuest">
+    <span class="tq-page-title" id="tq-page-title">Admin Home</span>
+    <div class="tq-user-badge">
+      <div class="tq-avatar"><?= $avatar ?></div>
+      <span>Admin: <?= htmlspecialchars($admin_user) ?></span>
     </div>
+  </header>
 
-    <div class="tab-pane fade p-4" id="admin">
-        <div class="container admin-container shadow-sm">
-            <h2 class="mb-4">System Administration</h2>
-            <div class="card mb-5 border-0 bg-light shadow-sm">
-                <div class="card-header bg-dark text-white fw-bold">Add New Module / Gauge Study</div>
-                <div class="card-body">
-                    <form method="POST" enctype="multipart/form-data">
-                        <div class="row">
-                            <div class="col-md-6 mb-3"><input type="text" name="title" class="form-control" placeholder="Title (Include 'Gauge' for Gauge Studies)" required></div>
-                            <div class="col-md-6 mb-3">
-                                <select name="department" class="form-select" required>
-                                    <option value="all">-- All Department --</option>
-                                    <option value="ACCOUNTING">ACCOUNTING</option>
-                                    <option value="ASEPH BURN-IN">ASEPH BURN-IN</option>
-                                    <option value="ENGINEERING">ENGINEERING</option>
-                                    <option value="PRODUCTION">PRODUCTION</option>
-                                    <option value="QA">QA</option>
-                                </select>
-                            </div>
-                        </div>
-                        <textarea name="description" class="form-control mb-3" placeholder="Description"></textarea>
-                        <button type="submit" name="add" class="btn btn-success px-5">Publish</button>
-                    </form>
+  <div class="tq-body">
+
+    <!-- SIDEBAR -->
+    <nav class="tq-sidebar">
+      <ul class="tq-nav">
+        <li class="tq-nav-item active">
+          <a href="?tab=home" class="tq-nav-link" data-section="home">
+            <i class="bi bi-house-fill"></i><span>Admin Home</span>
+          </a>
+        </li>
+        <li class="tq-nav-item">
+          <a href="?tab=admin" class="tq-nav-link" data-section="admin">
+            <i class="bi bi-layers-fill"></i><span>Manage Modules</span>
+          </a>
+        </li>
+        <li class="tq-nav-item">
+          <a href="?tab=gauge-admin" class="tq-nav-link" data-section="gauge-admin">
+            <i class="bi bi-clipboard-data-fill"></i><span>Gauge Study</span>
+          </a>
+        </li>
+        <li class="tq-nav-item">
+          <a href="?tab=users" class="tq-nav-link" data-section="users">
+            <i class="bi bi-people-fill"></i><span>User Attempts</span>
+          </a>
+        </li>
+      </ul>
+      <div class="tq-sidebar-footer">
+        <a href="LOGOUT.php" class="tq-logout">
+          <i class="bi bi-box-arrow-right"></i> Logout
+        </a>
+      </div>
+    </nav>
+
+    <!-- MAIN CONTENT -->
+    <main class="tq-content">
+
+      <!-- ═══════════ HOME SECTION ═══════════ -->
+      <section class="tq-section active" id="section-home">
+
+        <div class="tq-stat-grid">
+          <div class="tq-stat-card">
+            <div class="tq-stat-icon"><i class="bi bi-people-fill"></i></div>
+            <div>
+              <div class="tq-stat-value"><?= $total_users ?></div>
+              <div class="tq-stat-label">Total Users</div>
+            </div>
+          </div>
+          <div class="tq-stat-card">
+            <div class="tq-stat-icon"><i class="bi bi-layers-fill"></i></div>
+            <div>
+              <div class="tq-stat-value"><?= $total_modules ?></div>
+              <div class="tq-stat-label">Active Modules</div>
+            </div>
+          </div>
+          <div class="tq-stat-card">
+            <div class="tq-stat-icon"><i class="bi bi-graph-up-arrow"></i></div>
+            <div>
+              <div class="tq-stat-value"><?= $pass_rate ?>%</div>
+              <div class="tq-stat-label">Overall Pass Rate</div>
+            </div>
+          </div>
+          <div class="tq-stat-card">
+            <div class="tq-stat-icon"><i class="bi bi-clipboard-data-fill"></i></div>
+            <div>
+              <div class="tq-stat-value"><?= $gauge_cnt ?></div>
+              <div class="tq-stat-label">Gauge Exams Taken</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="tq-section-header" style="margin-top:8px;"><i class="bi bi-lightning-fill"></i>Quick Actions</div>
+        <div class="tq-quick-actions">
+          <a href="#" data-goto-section="admin" class="tq-quick-action">
+            <i class="bi bi-plus-circle-fill"></i>
+            <div>
+              <div style="font-size:15px;">Add Module</div>
+              <div style="font-size:12px; opacity:.8; font-weight:400;">Create a new training module</div>
+            </div>
+          </a>
+          <a href="#" data-goto-section="gauge-admin" class="tq-quick-action">
+            <i class="bi bi-clipboard-data-fill"></i>
+            <div>
+              <div style="font-size:15px;">Gauge Study</div>
+              <div style="font-size:12px; opacity:.8; font-weight:400;">Manage gauge exams &amp; keys</div>
+            </div>
+          </a>
+          <a href="#" data-goto-section="users" class="tq-quick-action">
+            <i class="bi bi-person-lines-fill"></i>
+            <div>
+              <div style="font-size:15px;">User Attempts</div>
+              <div style="font-size:12px; opacity:.8; font-weight:400;">View &amp; reset employee progress</div>
+            </div>
+          </a>
+        </div>
+
+        <!-- Module Summary -->
+        <div class="tq-card">
+          <div class="tq-card-header"><i class="bi bi-table me-2" style="color:var(--tq-gold);"></i>All Modules at a Glance</div>
+          <div style="overflow-x:auto;">
+            <table class="tq-table">
+              <thead><tr><th>Title</th><th>Department</th><th>Type</th><th>Actions</th></tr></thead>
+              <tbody>
+                <?php foreach ($modules as $m): $is_g = stripos($m['title'], 'Gauge') !== false; ?>
+                <tr>
+                  <td style="font-weight:500;"><?= htmlspecialchars($m['title']) ?></td>
+                  <td><?= htmlspecialchars($m['department']) ?></td>
+                  <td><span class="tq-badge <?= $is_g ? 'tq-badge-warning' : 'tq-badge-navy' ?>"><?= $is_g ? 'Gauge' : 'Module' ?></span></td>
+                  <td>
+                    <?php if (!$is_g): ?>
+                    <a href="manage_exam.php?module_id=<?= $m['id'] ?>" class="btn-tq-primary" style="padding:5px 12px; font-size:12px;">
+                      <i class="bi bi-question-circle"></i> Quiz
+                    </a>
+                    <?php else: ?>
+                    <a href="view_gauge_report.php?id=<?= $m['id'] ?>" class="btn-tq-gold" style="padding:5px 12px; font-size:12px;">
+                      <i class="bi bi-bar-chart"></i> Report
+                    </a>
+                    <a href="gauge_control.php?id=<?= $m['id'] ?>" class="btn-tq-outline" style="padding:5px 12px; font-size:12px;">
+                      <i class="bi bi-key"></i> Key
+                    </a>
+                    <?php endif; ?>
+                    <a href="?delete=<?= $m['id'] ?>&tab=home" class="btn-tq-danger" style="padding:5px 10px; font-size:12px;"
+                       onclick="return confirm('Delete \'<?= htmlspecialchars(addslashes($m['title'])) ?>\'? This cannot be undone.')">
+                      <i class="bi bi-trash"></i>
+                    </a>
+                  </td>
+                </tr>
+                <?php endforeach; ?>
+                <?php if (empty($modules)): ?>
+                <tr><td colspan="4">
+                  <div class="tq-empty" style="padding:28px;">
+                    <span class="tq-empty-icon"><i class="bi bi-inbox"></i></span>
+                    <div class="tq-empty-text">No modules yet — add one below</div>
+                  </div>
+                </td></tr>
+                <?php endif; ?>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- ═══════════ MANAGE MODULES SECTION ═══════════ -->
+      <section class="tq-section" id="section-admin">
+        <div class="tq-section-header"><i class="bi bi-layers-fill"></i>Manage Modules</div>
+
+        <!-- Collapsible Add Form -->
+        <button class="tq-collapse-toggle" id="tq-collapse-btn" type="button">
+          <i class="bi bi-chevron-down"></i>
+          <span class="btn-label">Add New Module / Gauge Study</span>
+        </button>
+
+        <div class="tq-collapse-body" id="tq-collapse-panel">
+          <div class="tq-card" style="margin-bottom:24px;">
+            <div class="tq-card-header" style="background:var(--tq-navy); color:#fff;">
+              <i class="bi bi-plus-circle me-2"></i>New Module / Gauge Study
+            </div>
+            <div class="tq-card-body">
+              <form method="POST" enctype="multipart/form-data">
+                <div class="tq-form-row">
+                  <div class="tq-form-group" style="margin-bottom:0;">
+                    <label class="tq-label">Title <small style="color:var(--tq-muted); font-weight:400;">(include "Gauge" for gauge studies)</small></label>
+                    <input type="text" name="title" class="tq-input" placeholder="Module title" required>
+                  </div>
+                  <div class="tq-form-group" style="margin-bottom:0;">
+                    <label class="tq-label">Department</label>
+                    <select name="department" class="tq-select" required>
+                      <option value="all">All Departments</option>
+                      <option value="ACCOUNTING">ACCOUNTING</option>
+                      <option value="ASEPH BURN-IN">ASEPH BURN-IN</option>
+                      <option value="ENGINEERING">ENGINEERING</option>
+                      <option value="PRODUCTION">PRODUCTION</option>
+                      <option value="QA">QA</option>
+                      <option value="QA/TRAINING">QA/TRAINING</option>
+                    </select>
+                  </div>
                 </div>
+                <div class="tq-form-group">
+                  <label class="tq-label">Description</label>
+                  <textarea name="description" class="tq-textarea" placeholder="Brief description of this module"></textarea>
+                </div>
+                <div class="tq-form-group">
+                  <label class="tq-label">Content / Module Information</label>
+                  <textarea name="content" class="tq-textarea" style="min-height:100px;" placeholder="Detailed module content"></textarea>
+                </div>
+                <div class="tq-form-row">
+                  <div class="tq-form-group" style="margin-bottom:0;">
+                    <label class="tq-label"><i class="bi bi-image me-1"></i>Cover Image</label>
+                    <input type="file" name="image" accept="image/*" class="tq-input" style="padding:8px 14px; height:auto;">
+                  </div>
+                  <div class="tq-form-group" style="margin-bottom:0;">
+                    <label class="tq-label"><i class="bi bi-camera-video me-1"></i>Training Video</label>
+                    <input type="file" name="video" accept="video/*" class="tq-input" style="padding:8px 14px; height:auto;">
+                  </div>
+                </div>
+                <div style="margin-top:20px;">
+                  <button type="submit" name="add" class="btn-tq-gold">
+                    <i class="bi bi-cloud-upload"></i> Publish Module
+                  </button>
+                </div>
+              </form>
             </div>
-
-            <h4>Existing Normal Modules</h4>
-            <table class="table table-hover align-middle">
-                <thead class="table-dark"><tr><th>Title</th><th>Dept</th><th class="text-center">Action</th></tr></thead>
-                <tbody>
-                    <?php foreach ($modules as $m): if (stripos($m['title'], 'Gauge') !== false) continue; ?>
-                    <tr>
-                        <td><?= htmlspecialchars($m['title']) ?></td><td><?= htmlspecialchars($m['department']) ?></td>
-                        <td class="text-center"><a href="manage_exam.php?module_id=<?= $m['id'] ?>" class="btn btn-info btn-sm text-white">Manage Quiz</a> <a href="?delete=<?= $m['id'] ?>" class="btn btn-danger btn-sm" onclick="return confirm('Delete?')">Delete</a></td>
-                    </tr>
-                    <?php endforeach; ?>
-                </tbody>
-            </table>
+          </div>
         </div>
-    </div>
 
-    <div class="tab-pane fade p-4" id="gauge-admin">
-        <div class="container admin-container shadow-sm border-start border-5 border-dark">
-            <h2 class="mb-4">Gauge Study Management</h2>
-            <table class="table table-hover align-middle">
-                <thead class="table-dark"><tr><th>Study Title</th><th>Dept</th><th class="text-center">Action</th></tr></thead>
-                <tbody>
-                    <?php foreach ($modules as $m): if (stripos($m['title'], 'Gauge') !== false): ?>
-                    <tr>
-                        <td class="fw-bold"><?= htmlspecialchars($m['title']) ?></td><td><?= htmlspecialchars($m['department']) ?></td>
-                        <td class="text-center">
-                            <a href="view_gauge_report.php?id=<?= $m['id'] ?>" class="btn btn-success btn-sm fw-bold">View Report</a>
-                            <a href="gauge_control.php?id=<?= $m['id'] ?>" class="btn btn-dark btn-sm">Manage Answer Key</a>
-                            <a href="?delete=<?= $m['id'] ?>" class="btn btn-danger btn-sm" onclick="return confirm('Delete Study?')">Delete</a>
-                        </td>
-                    </tr>
-                    <?php endif; endforeach; ?>
-                </tbody>
+        <!-- Normal Modules Table -->
+        <div class="tq-section-header" style="font-size:15px;"><i class="bi bi-book-fill"></i>Normal Modules</div>
+        <div class="tq-card">
+          <div style="overflow-x:auto;">
+            <table class="tq-table">
+              <thead><tr><th>Title</th><th>Department</th><th style="text-align:center;">Actions</th></tr></thead>
+              <tbody>
+                <?php foreach ($modules as $m): if (stripos($m['title'], 'Gauge') !== false) continue; ?>
+                <tr>
+                  <td style="font-weight:500;"><?= htmlspecialchars($m['title']) ?></td>
+                  <td><?= htmlspecialchars($m['department']) ?></td>
+                  <td style="text-align:center;">
+                    <a href="manage_exam.php?module_id=<?= $m['id'] ?>" class="btn-tq-primary" style="padding:6px 14px; font-size:12px;">
+                      <i class="bi bi-question-circle"></i> Manage Quiz
+                    </a>
+                    <a href="?delete=<?= $m['id'] ?>&tab=admin" class="btn-tq-danger" style="padding:6px 10px; font-size:12px;"
+                       onclick="return confirm('Delete this module?')" title="Delete module">
+                      <i class="bi bi-trash"></i>
+                    </a>
+                  </td>
+                </tr>
+                <?php endforeach; ?>
+              </tbody>
             </table>
+          </div>
         </div>
-    </div>
 
-    <div class="tab-pane fade p-4" id="users">
-        <div class="container admin-container shadow-sm">
-            <div class="d-flex justify-content-between mb-4">
-                <h3>Employee Progress</h3>
-                <input type="text" id="userSearchInput" class="form-control w-50" placeholder="Search...">
-            </div>
-            <table class="table align-middle"><thead class="table-dark"><tr><th>Username</th><th>Module</th><th>Score</th><th>Attempts</th><th>Action</th></tr></thead>
-                <tbody id="attemptsTableBody">
-                    <?php
-                    $all_res = $conn->query("SELECT r.*, m.title FROM exam_results r JOIN modules m ON r.module_id = m.id ORDER BY r.username ASC");
-                    while ($row = $all_res->fetch_assoc()): ?>
-                    <tr>
-                        <td><?= htmlspecialchars($row['username']) ?></td><td><?= htmlspecialchars($row['title']) ?></td>
-                        <td><?= $row['score'] ?> / <?= $row['total_questions'] ?></td>
-                        <td><span class="badge <?= $row['attempts'] >= 3 ? 'bg-danger' : 'bg-info' ?>"><?= $row['attempts'] ?> / 3</span></td>
-                        <td><a href="?reset_user=<?= urlencode($row['username']) ?>&mid=<?= $row['module_id'] ?>" class="btn btn-outline-danger btn-sm" onclick="return confirm('Reset?')">Reset</a></td>
-                    </tr>
-                    <?php endwhile; ?>
-                </tbody>
+      </section>
+
+      <!-- ═══════════ GAUGE ADMIN SECTION ═══════════ -->
+      <section class="tq-section" id="section-gauge-admin">
+        <div class="tq-section-header"><i class="bi bi-clipboard-data-fill"></i>Gauge Study Management</div>
+        <div class="tq-card">
+          <div style="overflow-x:auto;">
+            <table class="tq-table">
+              <thead><tr><th>Study Title</th><th>Department</th><th style="text-align:center;">Actions</th></tr></thead>
+              <tbody>
+                <?php
+                $has_gauge = false;
+                foreach ($modules as $m): if (stripos($m['title'], 'Gauge') === false) continue;
+                $has_gauge = true;
+                ?>
+                <tr>
+                  <td style="font-weight:600; color:var(--tq-navy);"><?= htmlspecialchars($m['title']) ?></td>
+                  <td><?= htmlspecialchars($m['department']) ?></td>
+                  <td style="text-align:center;">
+                    <a href="view_gauge_report.php?id=<?= $m['id'] ?>" class="btn-tq-gold" style="padding:6px 14px; font-size:12px;">
+                      <i class="bi bi-bar-chart-fill"></i> View Report
+                    </a>
+                    <a href="gauge_control.php?id=<?= $m['id'] ?>" class="btn-tq-outline" style="padding:6px 14px; font-size:12px;">
+                      <i class="bi bi-key-fill"></i> Answer Key
+                    </a>
+                    <a href="?delete=<?= $m['id'] ?>&tab=gauge-admin" class="btn-tq-danger" style="padding:6px 10px; font-size:12px;"
+                       onclick="return confirm('Delete this gauge study?')" title="Delete">
+                      <i class="bi bi-trash"></i>
+                    </a>
+                  </td>
+                </tr>
+                <?php endforeach; ?>
+                <?php if (!$has_gauge): ?>
+                <tr><td colspan="3">
+                  <div class="tq-empty" style="padding:28px;">
+                    <span class="tq-empty-icon"><i class="bi bi-clipboard-x"></i></span>
+                    <div class="tq-empty-text">No gauge studies yet</div>
+                  </div>
+                </td></tr>
+                <?php endif; ?>
+              </tbody>
             </table>
+          </div>
         </div>
-    </div>
+      </section>
+
+      <!-- ═══════════ USER ATTEMPTS SECTION ═══════════ -->
+      <section class="tq-section" id="section-users">
+        <div class="tq-section-header"><i class="bi bi-people-fill"></i>Employee Progress</div>
+        <div style="margin-bottom:16px; max-width:360px;">
+          <div style="position:relative;">
+            <i class="bi bi-search" style="position:absolute; left:14px; top:50%; transform:translateY(-50%); color:var(--tq-muted);"></i>
+            <input type="text" id="userSearchInput" class="tq-input" placeholder="Search by name or module…" style="padding-left:40px;">
+          </div>
+        </div>
+        <div class="tq-card" style="overflow:hidden;">
+          <div style="overflow-x:auto;">
+            <table class="tq-table">
+              <thead><tr><th>Username</th><th>Module</th><th>Score</th><th>Attempts</th><th>Actions</th></tr></thead>
+              <tbody id="attemptsTableBody">
+                <?php
+                $all_res = $conn->query("SELECT r.*, m.title FROM exam_results r JOIN modules m ON r.module_id = m.id ORDER BY r.username ASC");
+                while ($row = $all_res->fetch_assoc()):
+                  $apct = $row['total_questions'] > 0 ? round(($row['score']/$row['total_questions'])*100) : 0;
+                ?>
+                <tr>
+                  <td style="font-weight:600;"><?= htmlspecialchars($row['username']) ?></td>
+                  <td><?= htmlspecialchars($row['title']) ?></td>
+                  <td>
+                    <?= $row['score'] ?> / <?= $row['total_questions'] ?>
+                    <span class="tq-badge <?= $apct >= 70 ? 'tq-badge-success' : 'tq-badge-danger' ?>" style="margin-left:6px;"><?= $apct ?>%</span>
+                  </td>
+                  <td>
+                    <span class="tq-badge <?= $row['attempts'] >= 3 ? 'tq-badge-danger' : 'tq-badge-navy' ?>">
+                      <?= $row['attempts'] ?> / 3
+                    </span>
+                  </td>
+                  <td>
+                    <a href="?reset_user=<?= urlencode($row['username']) ?>&mid=<?= $row['module_id'] ?>"
+                       class="btn-tq-danger" style="padding:5px 10px; font-size:12px;"
+                       onclick="return confirm('Reset progress for <?= htmlspecialchars(addslashes($row['username'])) ?>?')"
+                       title="Reset this user's attempts">
+                      <i class="bi bi-arrow-counterclockwise"></i> Reset
+                    </a>
+                  </td>
+                </tr>
+                <?php endwhile; ?>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
 </div>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+<script src="assets/js/scripts.js"></script>
 </body>
 </html>

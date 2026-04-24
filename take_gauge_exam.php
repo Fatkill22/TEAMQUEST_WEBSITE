@@ -8,136 +8,127 @@ if (!isset($_SESSION['username'])) {
 }
 
 $module_id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
-$username = $_SESSION['username'];
+$username  = $_SESSION['username'];
 
-// Fetch module details
 $mod_query = $conn->query("SELECT title FROM modules WHERE id = $module_id");
-$module = $mod_query->fetch_assoc();
+$module    = $mod_query->fetch_assoc();
+$avatar    = strtoupper(substr($username, 0, 1));
 ?>
-
 <!doctype html>
 <html lang="en">
 <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Attribute Gauge Study - <?= htmlspecialchars($module['title']) ?></title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <style>
-        body { background-color: #f4f7f6; }
-        .exam-sheet {
-            background-color: white;
-            border: 2px solid #333;
-            max-width: 600px;
-            margin: 20px auto;
-            padding: 0;
-        }
-        .header-box {
-            border-bottom: 2px solid #333;
-            padding: 10px;
-            text-align: center;
-            background-color: #fff;
-        }
-        .info-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            border-bottom: 2px solid #333;
-        }
-        .info-item {
-            padding: 5px 10px;
-            border: 1px solid #333;
-            font-size: 0.9rem;
-        }
-        .instruction {
-            background-color: #eee;
-            padding: 5px;
-            text-align: center;
-            font-weight: bold;
-            font-size: 0.85rem;
-            border-bottom: 2px solid #333;
-        }
-        .gauge-table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-        .gauge-table th, .gauge-table td {
-            border: 1px solid #333;
-            padding: 4px;
-            text-align: center;
-        }
-        .gauge-table th { background-color: #f8f9fa; font-size: 0.8rem; }
-        .input-cell {
-            width: 100%;
-            border: none;
-            text-align: center;
-            font-weight: bold;
-            outline: none;
-        }
-        .input-cell:focus { background-color: #fff3cd; }
-        .sticky-footer {
-            position: sticky;
-            bottom: 0;
-            background: white;
-            padding: 15px;
-            border-top: 2px solid #333;
-            text-align: center;
-        }
-    </style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Gauge Study — <?= htmlspecialchars($module['title']) ?></title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="assets/css/styles.css">
 </head>
 <body>
+<div class="tq-shell">
 
-<div class="container">
-    <form action="process_gauge.php" method="POST">
-        <input type="hidden" name="module_id" value="<?= $module_id ?>">
-        
-        <div class="exam-sheet shadow-lg">
-            <div class="header-box">
-                <h5 class="mb-0">ATTRIBUTE GAUGE REPEATABILITY</h5>
-                <h6>AND REPRODUCIBILITY STUDY</h6>
-            </div>
+  <header class="tq-topbar">
+    <img src="Images/Logo.png" class="tq-logo" alt="TeamQuest">
+    <span class="tq-page-title">Attribute Gauge R&amp;R Study</span>
+    <div class="tq-user-badge">
+      <div class="tq-avatar"><?= $avatar ?></div>
+      <span><?= htmlspecialchars($username) ?></span>
+    </div>
+  </header>
 
-            <div class="info-grid">
-                <div class="info-item">Name: <strong><?= $_SESSION['username'] ?></strong></div>
-                <div class="info-item">Date: <?= date('Y-m-d') ?></div>
-                <div class="info-item">Emp. #: _______</div>
-                <div class="info-item">Process: <?= htmlspecialchars($module['title']) ?></div>
-            </div>
+  <div class="tq-body">
+    <nav class="tq-sidebar">
+      <ul class="tq-nav">
+        <li class="tq-nav-item"><a href="EMPLOYEE.php?tab=home" class="tq-nav-link"><i class="bi bi-house-fill"></i><span>Home</span></a></li>
+        <li class="tq-nav-item"><a href="EMPLOYEE.php?tab=modules" class="tq-nav-link"><i class="bi bi-book-fill"></i><span>My Modules</span></a></li>
+        <li class="tq-nav-item active"><a href="EMPLOYEE.php?tab=gauge" class="tq-nav-link"><i class="bi bi-clipboard-check-fill"></i><span>Gauge Exams</span></a></li>
+        <li class="tq-nav-item"><a href="EMPLOYEE.php?tab=results" class="tq-nav-link"><i class="bi bi-bar-chart-fill"></i><span>My Results</span></a></li>
+      </ul>
+      <div class="tq-sidebar-footer"><a href="LOGOUT.php" class="tq-logout"><i class="bi bi-box-arrow-right"></i> Logout</a></div>
+    </nav>
 
-            <div class="instruction">
-                Put 1 if "good" and 0 for "reject"
-            </div>
+    <main class="tq-content">
+      <div style="max-width:700px; margin:0 auto;">
 
-            <table class="gauge-table">
-                <thead>
-                    <tr>
-                        <th width="20%">SCORE</th>
-                        <th width="40%">TRIAL 1</th>
-                        <th width="40%">TRIAL 2</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php for($i = 1; $i <= 50; $i++): ?>
-                    <tr>
-                        <td class="fw-bold"><?= $i ?></td>
-                        <td>
-                            <input type="number" name="q<?= $i ?>_t1" class="input-cell" 
-                                   min="0" max="1" required placeholder="0/1">
-                        </td>
-                        <td>
-                            <input type="number" name="q<?= $i ?>_t2" class="input-cell" 
-                                   min="0" max="1" required placeholder="0/1">
-                        </td>
-                    </tr>
-                    <?php endfor; ?>
-                </tbody>
-            </table>
+        <div class="tq-section-header"><i class="bi bi-clipboard-check-fill"></i><?= htmlspecialchars($module['title']) ?></div>
 
-            <div class="sticky-footer">
-                <button type="submit" class="btn btn-primary w-100 fw-bold">SUBMIT STUDY RESULTS</button>
-                <small class="text-muted d-block mt-2">AD-0001-F4-Rev 2</small>
-            </div>
+        <!-- Info card -->
+        <div class="tq-card" style="margin-bottom:20px; border-left:5px solid var(--tq-navy);">
+          <div class="tq-card-body" style="display:grid; grid-template-columns:1fr 1fr; gap:10px; font-size:13px;">
+            <div><span style="color:var(--tq-muted);">Appraiser:</span> <strong><?= htmlspecialchars($username) ?></strong></div>
+            <div><span style="color:var(--tq-muted);">Date:</span> <strong><?= date('Y-m-d') ?></strong></div>
+            <div><span style="color:var(--tq-muted);">Process:</span> <strong><?= htmlspecialchars($module['title']) ?></strong></div>
+            <div><span style="color:var(--tq-muted);">Reference:</span> <strong>AD-0001-F4-Rev 2</strong></div>
+          </div>
         </div>
-    </form>
-</div>
 
+        <div class="tq-card" style="margin-bottom:8px; background:rgba(200,150,12,0.1); border:none; box-shadow:none;">
+          <div class="tq-card-body" style="padding:12px 20px; font-size:13px; font-weight:600; color:var(--tq-gold); text-align:center;">
+            <i class="bi bi-info-circle me-1"></i>
+            Enter <strong>1</strong> if the part is GOOD &nbsp;·&nbsp; Enter <strong>0</strong> if REJECT
+          </div>
+        </div>
+
+        <form action="process_gauge.php" method="POST">
+          <input type="hidden" name="module_id" value="<?= $module_id ?>">
+
+          <div class="tq-card">
+            <table class="tq-gauge-table">
+              <thead>
+                <tr>
+                  <th style="width:60px;">#</th>
+                  <th>Trial 1</th>
+                  <th>Trial 2</th>
+                </tr>
+              </thead>
+              <tbody>
+                <?php for ($i = 1; $i <= 50; $i++): ?>
+                <tr>
+                  <td style="font-weight:700; color:var(--tq-navy);"><?= $i ?></td>
+                  <td>
+                    <!-- Hidden real inputs -->
+                    <input type="hidden" name="q<?= $i ?>_t1" id="q<?= $i ?>_t1_val" value="">
+                    <div class="tq-toggle-wrap">
+                      <button type="button" class="tq-toggle-btn" data-val="1" data-target="q<?= $i ?>_t1_val">1</button>
+                      <button type="button" class="tq-toggle-btn" data-val="0" data-target="q<?= $i ?>_t1_val">0</button>
+                    </div>
+                  </td>
+                  <td>
+                    <input type="hidden" name="q<?= $i ?>_t2" id="q<?= $i ?>_t2_val" value="">
+                    <div class="tq-toggle-wrap">
+                      <button type="button" class="tq-toggle-btn" data-val="1" data-target="q<?= $i ?>_t2_val">1</button>
+                      <button type="button" class="tq-toggle-btn" data-val="0" data-target="q<?= $i ?>_t2_val">0</button>
+                    </div>
+                  </td>
+                </tr>
+                <?php endfor; ?>
+              </tbody>
+            </table>
+          </div>
+
+          <div style="position:sticky; bottom:0; background:#fff; padding:16px 0; border-top:2px solid #eef0f7; margin-top:4px;">
+            <button type="submit" class="btn-tq-gold" style="width:100%; justify-content:center; height:50px; font-size:15px;">
+              <i class="bi bi-send-check"></i> Submit Study Results
+            </button>
+            <div style="text-align:center; margin-top:8px; font-size:11px; color:var(--tq-muted);">AD-0001-F4-Rev 2</div>
+          </div>
+        </form>
+
+      </div>
+    </main>
+  </div>
+</div>
+<script src="assets/js/scripts.js"></script>
+<script>
+// Validate all toggles filled before submit
+document.querySelector('form').addEventListener('submit', function(e) {
+  const hidden = this.querySelectorAll('input[type="hidden"][name^="q"]');
+  let missing = false;
+  hidden.forEach(function(inp) { if (inp.value === '') missing = true; });
+  if (missing) {
+    e.preventDefault();
+    tqToast('Please fill in all 50 items before submitting.', 'error');
+  }
+});
+</script>
 </body>
 </html>

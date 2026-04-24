@@ -2,128 +2,296 @@
 session_start();
 include "config.php";
 
-if (!isset($_SESSION['username']) || $_SESSION['roles'] != 'admin') { die("Access Denied. Admins only."); }
+if (!isset($_SESSION['username']) || $_SESSION['roles'] != 'admin') { die("Access Denied."); }
 
-$module_id = (int)$_GET['id'];
-$mod_query = $conn->query("SELECT title FROM modules WHERE id = $module_id");
+$module_id   = (int)$_GET['id'];
+$mod_query   = $conn->query("SELECT title FROM modules WHERE id = $module_id");
 $module_title = ($mod_query->fetch_assoc())['title'] ?? "Unknown Study";
 
 $key_query = $conn->query("SELECT question_num, correct_val FROM gauge_answers WHERE module_id = $module_id");
-$master_key = [];
-$total_good = 0; $total_bad = 0;  
-while($row = $key_query->fetch_assoc()) {
+$master_key = []; $total_good = 0; $total_bad = 0;
+while ($row = $key_query->fetch_assoc()) {
     $master_key[$row['question_num']] = $row['correct_val'];
     if ($row['correct_val'] == 1) $total_good++;
-    if ($row['correct_val'] == 0) $total_bad++;
+    else $total_bad++;
 }
 
 $results_query = $conn->query("SELECT username, score, wrong_questions FROM exam_results WHERE module_id = $module_id ORDER BY score DESC");
+$all_rows      = $results_query ? $results_query->fetch_all(MYSQLI_ASSOC) : [];
 
-function getEffectivenessColor($val) { return $val >= 90 ? 'text-success fw-bold' : ($val >= 80 ? 'text-warning text-dark fw-bold' : 'text-danger fw-bold'); }
-function getMissColor($val) { return $val <= 2 ? 'text-success fw-bold' : ($val <= 5 ? 'text-warning text-dark fw-bold' : 'text-danger fw-bold'); }
-function getFalseAlarmColor($val) { return $val <= 5 ? 'text-success fw-bold' : ($val <= 10 ? 'text-warning text-dark fw-bold' : 'text-danger fw-bold'); }
-function getResultText($type, $val) {
-    if ($type == 'eff') return $val >= 90 ? 'Acceptable' : ($val >= 80 ? 'Marginal' : 'Unacceptable');
-    if ($type == 'miss') return $val <= 2 ? 'Acceptable' : ($val <= 5 ? 'Marginal' : 'Unacceptable');
-    if ($type == 'alarm') return $val <= 5 ? 'Acceptable' : ($val <= 10 ? 'Marginal' : 'Unacceptable');
+function effColor($v)  { return $v >= 90 ? 'tq-badge-success' : ($v >= 80 ? 'tq-badge-warning' : 'tq-badge-danger'); }
+function missColor($v) { return $v <= 2  ? 'tq-badge-success' : ($v <= 5  ? 'tq-badge-warning' : 'tq-badge-danger'); }
+function alarmColor($v){ return $v <= 5  ? 'tq-badge-success' : ($v <= 10 ? 'tq-badge-warning' : 'tq-badge-danger'); }
+function rating($type, $v) {
+    if ($type==='eff')   return $v>=90 ? 'Acceptable' : ($v>=80 ? 'Marginal' : 'Unacceptable');
+    if ($type==='miss')  return $v<=2  ? 'Acceptable' : ($v<=5  ? 'Marginal' : 'Unacceptable');
+    if ($type==='alarm') return $v<=5  ? 'Acceptable' : ($v<=10 ? 'Marginal' : 'Unacceptable');
 }
-?>
 
+// Count summary for donut chart
+$cnt_accept = 0; $cnt_marginal = 0; $cnt_unaccept = 0;
+foreach ($all_rows as $r) {
+    $eff = ($r['score'] / 50) * 100;
+    $rat = rating('eff', $eff);
+    if ($rat === 'Acceptable')   $cnt_accept++;
+    elseif ($rat === 'Marginal') $cnt_marginal++;
+    else                         $cnt_unaccept++;
+}
+
+$admin_user = $_SESSION['username'];
+$avatar     = strtoupper(substr($admin_user, 0, 1));
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="utf-8">
-    <title>Attribute GR&R Report</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <style>
-        body { background: #f4f6f9; }
-        .report-header { background: #212529; color: white; padding: 20px; border-radius: 8px 8px 0 0; }
-        .table-custom th, .table-custom td { border: 1px solid #dee2e6; text-align: center; vertical-align: middle; font-size: 14px; }
-        .table-custom th { background: #e9ecef; }
-        .criteria-table th { background: #d1ecf1; }
-        .modal-table th { position: sticky; top: 0; background: #212529; color: white; z-index: 10; }
-    </style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>GR&R Report — <?= htmlspecialchars($module_title) ?></title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="assets/css/styles.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+  <style>
+    .modal-table th { position:sticky; top:0; background:var(--tq-navy); color:#fff; z-index:10; }
+  </style>
 </head>
-<body class="p-4">
-<div class="container-fluid bg-white shadow-sm p-0 rounded">
-    <div class="report-header d-flex justify-content-between align-items-center">
-        <div><h4 class="m-0">Attribute Measurement System Analysis (GR&R)</h4><small>Process: <?= htmlspecialchars($module_title) ?></small></div>
-        <div><span class="badge bg-light text-dark me-2">Good Parts: <?= $total_good ?></span><span class="badge bg-light text-dark">Bad Parts: <?= $total_bad ?></span></div>
+<body>
+<div class="tq-shell">
+
+  <header class="tq-topbar">
+    <img src="Images/Logo.png" class="tq-logo" alt="TeamQuest">
+    <span class="tq-page-title">GR&amp;R Report</span>
+    <div class="tq-user-badge">
+      <div class="tq-avatar"><?= $avatar ?></div>
+      <span>Admin: <?= htmlspecialchars($admin_user) ?></span>
     </div>
-    <div class="p-4">
-        <?php if ($total_good == 0 && $total_bad == 0): ?>
-            <div class="alert alert-danger">Master Answer Key not set.</div>
-        <?php elseif ($results_query->num_rows == 0): ?>
-            <div class="alert alert-info">No appraisers have taken this study yet.</div>
-        <?php else: ?>
-            <div class="table-responsive mb-5">
-                <table class="table table-custom table-hover">
-                    <thead>
-                        <tr><th rowspan="2">Appraiser</th><th rowspan="2">Raw Score</th><th colspan="3">Calculated Metrics</th><th colspan="3">Analysis</th></tr>
-                        <tr><th>Effectiveness</th><th>Miss Rate</th><th>False Alarm</th><th>Eff.</th><th>Miss</th><th>Alarm</th></tr>
-                    </thead>
-                    <tbody>
-                        <?php $modals_html = ""; while ($row = $results_query->fetch_assoc()): 
-                            $score = $row['score']; $username = $row['username']; $username_safe = preg_replace('/[^a-zA-Z0-9]/', '', $username);
-                            $mistakes = json_decode($row['wrong_questions'], true);
-                            $miss_list = []; $false_alarm_list = [];
-                            if (is_array($mistakes)) {
-                                foreach ($mistakes as $q_num => $user_ans) {
-                                    if ($user_ans == 1) $miss_list[] = $q_num; 
-                                    if ($user_ans == 0) $false_alarm_list[] = $q_num;
-                                }
-                            }
-                            $miss_count = count($miss_list); $false_alarm_count = count($false_alarm_list); $correct_count = 50 - ($miss_count + $false_alarm_count);
-                            $effectiveness = ($score / 50) * 100;
-                            $miss_rate = ($total_bad > 0) ? ($miss_count / $total_bad) * 100 : 0;
-                            $false_alarm_rate = ($total_good > 0) ? ($false_alarm_count / $total_good) * 100 : 0;
-                        ?>
-                        <tr>
-                            <td class="fw-bold text-start"><?= htmlspecialchars($username) ?></td>
-                            <td><span class="d-block fs-6"><?= $score ?> / 50</span><button class="btn btn-sm btn-outline-primary mt-1 shadow-sm" data-bs-toggle="modal" data-bs-target="#modal_<?= $username_safe ?>">View Breakdown</button></td>
-                            <td class="<?= getEffectivenessColor($effectiveness) ?>"><?= number_format($effectiveness, 1) ?>%</td>
-                            <td class="<?= getMissColor($miss_rate) ?>"><?= number_format($miss_rate, 1) ?>%</td>
-                            <td class="<?= getFalseAlarmColor($false_alarm_rate) ?>"><?= number_format($false_alarm_rate, 1) ?>%</td>
-                            <td><span class="badge bg-<?= getResultText('eff', $effectiveness)=='Acceptable'?'success':(getResultText('eff', $effectiveness)=='Marginal'?'warning':'danger') ?>"><?= getResultText('eff', $effectiveness) ?></span></td>
-                            <td><span class="badge bg-<?= getResultText('miss', $miss_rate)=='Acceptable'?'success':(getResultText('miss', $miss_rate)=='Marginal'?'warning':'danger') ?>"><?= getResultText('miss', $miss_rate) ?></span></td>
-                            <td><span class="badge bg-<?= getResultText('alarm', $false_alarm_rate)=='Acceptable'?'success':(getResultText('alarm', $false_alarm_rate)=='Marginal'?'warning':'danger') ?>"><?= getResultText('alarm', $false_alarm_rate) ?></span></td>
-                        </tr>
-                        <?php ob_start(); ?>
-                        <div class="modal fade" id="modal_<?= $username_safe ?>" tabindex="-1" aria-hidden="true">
-                            <div class="modal-dialog modal-dialog-scrollable modal-lg">
-                                <div class="modal-content">
-                                    <div class="modal-header bg-dark text-white"><h5 class="modal-title m-0">Detailed Breakdown: <?= htmlspecialchars($username) ?></h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
-                                    <div class="modal-body bg-light">
-                                        <div class="d-flex justify-content-between mb-3 bg-white p-3 border rounded shadow-sm">
-                                            <div class="text-success fw-bold">✔️ Correct: <?= $correct_count ?></div><div class="text-danger fw-bold">❌ Misses: <?= $miss_count ?></div><div class="text-warning text-dark fw-bold">⚠️ False Alarms: <?= $false_alarm_count ?></div>
-                                        </div>
-                                        <table class="table table-bordered table-hover text-center bg-white modal-table shadow-sm">
-                                            <thead><tr><th>Trial #</th><th>Master Key</th><th>User Answer</th><th>Status</th></tr></thead>
-                                            <tbody>
-                                                <?php for($i = 1; $i <= 50; $i++): 
-                                                    $master_ans = isset($master_key[$i]) ? $master_key[$i] : '-';
-                                                    $user_ans = $master_ans; $status = "✔️ Correct"; $text_class = "text-success";
-                                                    if (in_array($i, $miss_list)) { $user_ans = 1; $status = "❌ MISS"; $text_class = "text-danger fw-bold"; }
-                                                    elseif (in_array($i, $false_alarm_list)) { $user_ans = 0; $status = "⚠️ FALSE ALARM"; $text_class = "text-warning text-dark fw-bold"; }
-                                                ?>
-                                                <tr><td class="fw-bold bg-light"><?= $i ?></td><td class="fw-bold"><?= $master_ans ?></td><td class="<?= $text_class ?> fs-5"><?= $user_ans ?></td><td class="<?= $text_class ?>"><?= $status ?></td></tr>
-                                                <?php endfor; ?>
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                    <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button></div>
-                                </div>
-                            </div>
-                        </div>
-                        <?php $modals_html .= ob_get_clean(); endwhile; ?>
-                    </tbody>
-                </table>
+  </header>
+
+  <div class="tq-body">
+    <nav class="tq-sidebar">
+      <ul class="tq-nav">
+        <li class="tq-nav-item"><a href="admin_modules.php?tab=home" class="tq-nav-link"><i class="bi bi-house-fill"></i><span>Admin Home</span></a></li>
+        <li class="tq-nav-item"><a href="admin_modules.php?tab=admin" class="tq-nav-link"><i class="bi bi-layers-fill"></i><span>Manage Modules</span></a></li>
+        <li class="tq-nav-item active"><a href="admin_modules.php?tab=gauge-admin" class="tq-nav-link"><i class="bi bi-clipboard-data-fill"></i><span>Gauge Study</span></a></li>
+        <li class="tq-nav-item"><a href="admin_modules.php?tab=users" class="tq-nav-link"><i class="bi bi-people-fill"></i><span>User Attempts</span></a></li>
+      </ul>
+      <div class="tq-sidebar-footer"><a href="LOGOUT.php" class="tq-logout"><i class="bi bi-box-arrow-right"></i> Logout</a></div>
+    </nav>
+
+    <main class="tq-content">
+
+      <!-- Report Header -->
+      <div class="tq-card" style="margin-bottom:20px; overflow:hidden;">
+        <div class="tq-report-header">
+          <div>
+            <div style="font-size:17px; font-weight:700;">Attribute Measurement System Analysis (GR&amp;R)</div>
+            <div style="font-size:13px; opacity:.75; margin-top:4px;">Process: <?= htmlspecialchars($module_title) ?></div>
+          </div>
+          <div style="display:flex; gap:10px; align-items:center;">
+            <span class="tq-badge tq-badge-success"><i class="bi bi-check-circle me-1"></i>Good Parts: <?= $total_good ?></span>
+            <span class="tq-badge tq-badge-danger"><i class="bi bi-x-circle me-1"></i>Bad Parts: <?= $total_bad ?></span>
+          </div>
+        </div>
+      </div>
+
+      <?php if ($total_good == 0 && $total_bad == 0): ?>
+      <div class="tq-card">
+        <div class="tq-card-body">
+          <div class="tq-empty">
+            <span class="tq-empty-icon"><i class="bi bi-key-fill"></i></span>
+            <div class="tq-empty-text">Master Answer Key not set</div>
+            <div class="tq-empty-sub">Go to Answer Key to configure the correct values.</div>
+            <a href="gauge_control.php?id=<?= $module_id ?>" class="btn-tq-gold" style="margin-top:16px;">Set Answer Key</a>
+          </div>
+        </div>
+      </div>
+
+      <?php elseif (empty($all_rows)): ?>
+      <div class="tq-card">
+        <div class="tq-card-body">
+          <div class="tq-empty">
+            <span class="tq-empty-icon"><i class="bi bi-person-x"></i></span>
+            <div class="tq-empty-text">No appraisers have taken this study yet</div>
+          </div>
+        </div>
+      </div>
+
+      <?php else: ?>
+
+      <!-- Summary Donut + Stats Row -->
+      <div style="display:grid; grid-template-columns:220px 1fr; gap:20px; margin-bottom:20px;">
+        <div class="tq-card" style="display:flex; flex-direction:column; align-items:center; justify-content:center; padding:20px;">
+          <div style="font-size:12px; font-weight:700; color:var(--tq-muted); text-transform:uppercase; margin-bottom:12px;">Appraiser Summary</div>
+          <canvas id="gaugeDonut" width="160" height="160"></canvas>
+          <div style="margin-top:14px; font-size:12px; display:flex; flex-direction:column; gap:6px; width:100%;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <span><span style="display:inline-block;width:10px;height:10px;background:#16a34a;border-radius:50%;margin-right:6px;"></span>Acceptable</span>
+              <strong><?= $cnt_accept ?></strong>
             </div>
-            <?= $modals_html ?>
-        <?php endif; ?>
-        <a href="admin_modules.php" class="btn btn-dark shadow">← Back to Admin Panel</a>
-    </div>
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <span><span style="display:inline-block;width:10px;height:10px;background:#f59e0b;border-radius:50%;margin-right:6px;"></span>Marginal</span>
+              <strong><?= $cnt_marginal ?></strong>
+            </div>
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <span><span style="display:inline-block;width:10px;height:10px;background:#dc2626;border-radius:50%;margin-right:6px;"></span>Unacceptable</span>
+              <strong><?= $cnt_unaccept ?></strong>
+            </div>
+          </div>
+        </div>
+
+        <div class="tq-card" style="overflow:hidden;">
+          <div class="tq-card-header"><i class="bi bi-table me-2" style="color:var(--tq-gold);"></i>Appraiser Results</div>
+          <div style="overflow-x:auto;">
+            <?php $modals_html = ""; ?>
+            <table class="tq-table">
+              <thead>
+                <tr>
+                  <th rowspan="2" style="vertical-align:middle;">Appraiser</th>
+                  <th rowspan="2" style="vertical-align:middle; text-align:center;">Score</th>
+                  <th colspan="3" style="text-align:center; border-bottom:1px solid rgba(255,255,255,0.2);">Metrics</th>
+                  <th colspan="3" style="text-align:center; border-bottom:1px solid rgba(255,255,255,0.2);">Rating</th>
+                </tr>
+                <tr>
+                  <th style="text-align:center;">Effectiveness</th>
+                  <th style="text-align:center;">Miss Rate</th>
+                  <th style="text-align:center;">False Alarm</th>
+                  <th style="text-align:center;">Eff.</th>
+                  <th style="text-align:center;">Miss</th>
+                  <th style="text-align:center;">Alarm</th>
+                </tr>
+              </thead>
+              <tbody>
+                <?php foreach ($all_rows as $row):
+                  $score      = $row['score'];
+                  $uname      = $row['username'];
+                  $uname_safe = preg_replace('/[^a-zA-Z0-9]/', '', $uname);
+                  $mistakes   = json_decode($row['wrong_questions'], true);
+                  $miss_list = []; $false_alarm_list = [];
+                  if (is_array($mistakes)) {
+                      foreach ($mistakes as $q_num => $user_ans) {
+                          if ($user_ans == 1) $miss_list[]        = $q_num;
+                          if ($user_ans == 0) $false_alarm_list[] = $q_num;
+                      }
+                  }
+                  $miss_count      = count($miss_list);
+                  $false_alarm_count = count($false_alarm_list);
+                  $correct_count   = 50 - ($miss_count + $false_alarm_count);
+                  $effectiveness   = ($score / 50) * 100;
+                  $miss_rate       = ($total_bad  > 0) ? ($miss_count        / $total_bad)  * 100 : 0;
+                  $false_alarm_rate= ($total_good > 0) ? ($false_alarm_count / $total_good) * 100 : 0;
+                  $rat_eff   = rating('eff',   $effectiveness);
+                  $rat_miss  = rating('miss',  $miss_rate);
+                  $rat_alarm = rating('alarm', $false_alarm_rate);
+                  $row_bg = $rat_eff === 'Acceptable' ? '' : ($rat_eff === 'Marginal' ? 'style="background:#fefce8;"' : 'style="background:#fff5f5;"');
+                ?>
+                <tr <?= $row_bg ?>>
+                  <td style="font-weight:600;"><?= htmlspecialchars($uname) ?></td>
+                  <td style="text-align:center;">
+                    <div><?= $score ?> / 50</div>
+                    <button class="btn-tq-outline" style="padding:4px 10px; font-size:11px; margin-top:4px;"
+                            data-bs-toggle="modal" data-bs-target="#modal_<?= $uname_safe ?>">
+                      <i class="bi bi-search"></i> Breakdown
+                    </button>
+                  </td>
+                  <td style="text-align:center; font-weight:700;"><?= number_format($effectiveness,1) ?>%</td>
+                  <td style="text-align:center; font-weight:700;"><?= number_format($miss_rate,1) ?>%</td>
+                  <td style="text-align:center; font-weight:700;"><?= number_format($false_alarm_rate,1) ?>%</td>
+                  <td style="text-align:center;"><span class="tq-badge <?= effColor($effectiveness) ?>"><?= $rat_eff ?></span></td>
+                  <td style="text-align:center;"><span class="tq-badge <?= missColor($miss_rate) ?>"><?= $rat_miss ?></span></td>
+                  <td style="text-align:center;"><span class="tq-badge <?= alarmColor($false_alarm_rate) ?>"><?= $rat_alarm ?></span></td>
+                </tr>
+
+                <?php
+                // Build modal HTML
+                ob_start(); ?>
+                <div class="modal fade" id="modal_<?= $uname_safe ?>" tabindex="-1" aria-hidden="true">
+                  <div class="modal-dialog modal-dialog-scrollable modal-lg">
+                    <div class="modal-content">
+                      <div class="modal-header" style="background:var(--tq-navy); color:#fff;">
+                        <h5 class="modal-title">Breakdown: <?= htmlspecialchars($uname) ?></h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                      </div>
+                      <div class="modal-body" style="background:#f5f6fa;">
+                        <div style="display:flex; gap:16px; margin-bottom:16px;">
+                          <div class="tq-stat-card" style="flex:1; border-top-color:var(--tq-success);">
+                            <div class="tq-stat-icon" style="background:#dcfce7; color:var(--tq-success);"><i class="bi bi-check-lg"></i></div>
+                            <div><div class="tq-stat-value" style="font-size:20px;"><?= $correct_count ?></div><div class="tq-stat-label">Correct</div></div>
+                          </div>
+                          <div class="tq-stat-card" style="flex:1; border-top-color:var(--tq-danger);">
+                            <div class="tq-stat-icon" style="background:#fee2e2; color:var(--tq-danger);"><i class="bi bi-x-lg"></i></div>
+                            <div><div class="tq-stat-value" style="font-size:20px;"><?= $miss_count ?></div><div class="tq-stat-label">Misses</div></div>
+                          </div>
+                          <div class="tq-stat-card" style="flex:1; border-top-color:var(--tq-warning);">
+                            <div class="tq-stat-icon" style="background:#fef3c7; color:var(--tq-warning);"><i class="bi bi-exclamation-triangle"></i></div>
+                            <div><div class="tq-stat-value" style="font-size:20px;"><?= $false_alarm_count ?></div><div class="tq-stat-label">False Alarms</div></div>
+                          </div>
+                        </div>
+                        <table class="tq-table modal-table">
+                          <thead><tr><th style="text-align:center;">Trial #</th><th style="text-align:center;">Master Key</th><th style="text-align:center;">User Answer</th><th style="text-align:center;">Status</th></tr></thead>
+                          <tbody>
+                            <?php for ($i = 1; $i <= 50; $i++):
+                              $master_ans = $master_key[$i] ?? '-';
+                              $user_ans   = $master_ans;
+                              $status     = '<span class="tq-badge tq-badge-success">Correct</span>';
+                              if (in_array($i, $miss_list))        { $user_ans = 1; $status = '<span class="tq-badge tq-badge-danger">MISS</span>'; }
+                              elseif (in_array($i, $false_alarm_list)) { $user_ans = 0; $status = '<span class="tq-badge tq-badge-warning">FALSE ALARM</span>'; }
+                            ?>
+                            <tr style="<?= in_array($i,$miss_list)?'background:#fff5f5;':(in_array($i,$false_alarm_list)?'background:#fefce8;':'') ?>">
+                              <td style="text-align:center; font-weight:700;"><?= $i ?></td>
+                              <td style="text-align:center; font-weight:700;"><?= $master_ans ?></td>
+                              <td style="text-align:center; font-weight:700;"><?= $user_ans ?></td>
+                              <td style="text-align:center;"><?= $status ?></td>
+                            </tr>
+                            <?php endfor; ?>
+                          </tbody>
+                        </table>
+                      </div>
+                      <div class="modal-footer"><button class="btn-tq-outline" data-bs-dismiss="modal">Close</button></div>
+                    </div>
+                  </div>
+                </div>
+                <?php $modals_html .= ob_get_clean(); ?>
+
+                <?php endforeach; ?>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <?= $modals_html ?>
+      <?php endif; ?>
+
+      <a href="admin_modules.php?tab=gauge-admin" class="btn-tq-outline">
+        <i class="bi bi-arrow-left"></i> Back to Admin
+      </a>
+
+    </main>
+  </div>
 </div>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="assets/js/scripts.js"></script>
+<script>
+var ctx = document.getElementById('gaugeDonut');
+if (ctx) {
+  new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: ['Acceptable', 'Marginal', 'Unacceptable'],
+      datasets: [{
+        data: [<?= $cnt_accept ?>, <?= $cnt_marginal ?>, <?= $cnt_unaccept ?>],
+        backgroundColor: ['#16a34a', '#f59e0b', '#dc2626'],
+        borderWidth: 2, borderColor: '#fff'
+      }]
+    },
+    options: {
+      cutout: '65%',
+      plugins: { legend: { display: false } },
+      responsive: false
+    }
+  });
+}
+</script>
 </body>
 </html>

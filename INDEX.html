@@ -1,40 +1,62 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8">  
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>E-LEARNING WEBSITE</title>
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-<style>
-    body { background-color: #f8f9fa; height: 100vh; display: flex; align-items: center; justify-content: center; }
-    .login-card { width: 100%; max-width: 400px; padding: 2rem; border-radius: 1rem; box-shadow: 0 10px 25px rgba(0,0,0,0.1); background: white; }
-</style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TeamQuest Training Portal</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="assets/css/styles.css">
 </head>
 <body>
 
-<div class="login-card">
-    <div class="text-center mb-4">
-        <h2 class="fw-bold text-primary">TeamQuest Training</h2>
-        <p class="text-muted">Please log in</p>
+<div class="tq-login-page">
+
+  <!-- LEFT — Navy brand panel -->
+  <div class="tq-login-left">
+    <div class="tq-login-bg" style="background-image: url('Images/TeamQuest.jpg');"></div>
+    <div class="tq-login-logo-wrap">
+      <img src="Images/Logo.png" alt="TeamQuest Technology Inc.">
+      <p style="color: rgba(255,255,255,0.6); font-size: 13px; margin: 0; text-align: center;">
+        Training &amp; Development Portal
+      </p>
     </div>
+  </div>
 
-    <form action="INDEX.php" method="POST" autocomplete="off">
-        <div class="mb-3">
-            <label class="form-label fw-semibold">Username</label>
-            <input type="text" name="username" class="form-control" placeholder="Username" required autocomplete="off">
+  <!-- RIGHT — Login form -->
+  <div class="tq-login-right">
+    <div class="tq-login-form-wrap">
+
+      <div class="tq-login-title">Welcome Back</div>
+      <div class="tq-login-sub">Sign in to access your training modules.</div>
+
+      <form action="INDEX.php" method="POST" autocomplete="off">
+
+        <div class="tq-form-group">
+          <label class="tq-label"><i class="bi bi-person me-1"></i>Username</label>
+          <input type="text" name="username" class="tq-input" placeholder="Enter your username" required autocomplete="off">
         </div>
-        
-        <div class="mb-4">
-            <label class="form-label fw-semibold">Password</label>
-            <input type="password" name="password" class="form-control" placeholder="Password" required autocomplete="new-password">
+
+        <div class="tq-form-group" style="margin-bottom: 28px;">
+          <label class="tq-label"><i class="bi bi-lock me-1"></i>Password</label>
+          <input type="password" name="password" class="tq-input" placeholder="Enter your password" required autocomplete="new-password">
         </div>
 
-        <button type="submit" name="login" class="btn btn-primary w-100 py-2 fw-bold">LOGIN</button>
-    </form>
+        <button type="submit" name="login" class="btn-tq-primary w-100" style="width:100%; justify-content: center; height: 48px; font-size: 15px;">
+          <i class="bi bi-box-arrow-in-right"></i> Login
+        </button>
 
-    <hr>
-    <a href="REGISTER.html" class="btn btn-secondary w-100 py-2 fw-bold">REGISTER</a>
+      </form>
+
+      <div style="text-align: center; margin-top: 20px; font-size: 13px; color: var(--tq-muted);">
+        Don't have an account?
+        <a href="REGISTER.html" style="color: var(--tq-gold); font-weight: 600; text-decoration: none; margin-left: 4px;">Register here</a>
+      </div>
+
+    </div>
+  </div>
+
 </div>
 
+<script src="assets/js/scripts.js"></script>
 </body>
 </html>

@@ -12,119 +12,200 @@ if (!isset($_GET['id'])) {
     exit();
 }
 
-$id = $_GET['id'];
+$id   = $_GET['id'];
 $dept = $_SESSION['department'];
+$user = $_SESSION['username'];
 
-// Fetch current module
 $stmt = $conn->prepare("SELECT * FROM modules WHERE id = ?");
 $stmt->bind_param("i", $id);
 $stmt->execute();
 $module = $stmt->get_result()->fetch_assoc();
 
-if (!$module) {
-    die("Training module not found.");
-}
+if (!$module) { die("Training module not found."); }
 
-// CHECK IF EXAM EXISTS
 $check_exam = $conn->query("SELECT id FROM questions WHERE module_id = $id LIMIT 1");
-$has_exam = ($check_exam->num_rows > 0);
+$has_exam   = ($check_exam->num_rows > 0);
 
-// --- NAVIGATION LOGIC ---
-$prev_stmt = $conn->prepare("SELECT id FROM modules WHERE id < ? AND (department = ? OR department = 'all') ORDER BY id DESC LIMIT 1");
+$check_result = $conn->query("SELECT score, total_questions, attempts FROM exam_results WHERE username = '$user' AND module_id = $id");
+$result_row   = ($check_result && $check_result->num_rows > 0) ? $check_result->fetch_assoc() : null;
+$exam_done    = $result_row !== null;
+$attempts     = $result_row ? (int)$result_row['attempts'] : 0;
+$passed       = $result_row && $result_row['total_questions'] > 0 && ($result_row['score'] / $result_row['total_questions']) >= 0.7;
+
+// Step: 1=Watch, 2=Exam ready, 3=Done
+$current_step = $exam_done ? 3 : ($has_exam ? 2 : 1);
+
+$prev_stmt = $conn->prepare("SELECT id FROM modules WHERE id < ? AND (department = ? OR department = 'all') AND title NOT LIKE '%Gauge%' ORDER BY id DESC LIMIT 1");
 $prev_stmt->bind_param("is", $id, $dept);
 $prev_stmt->execute();
-$prev_res = $prev_stmt->get_result()->fetch_assoc();
-$prev_id = $prev_res ? $prev_res['id'] : null;
+$prev_id = ($prev_stmt->get_result()->fetch_assoc())['id'] ?? null;
 
-$next_stmt = $conn->prepare("SELECT id FROM modules WHERE id > ? AND (department = ? OR department = 'all') ORDER BY id ASC LIMIT 1");
+$next_stmt = $conn->prepare("SELECT id FROM modules WHERE id > ? AND (department = ? OR department = 'all') AND title NOT LIKE '%Gauge%' ORDER BY id ASC LIMIT 1");
 $next_stmt->bind_param("is", $id, $dept);
 $next_stmt->execute();
-$next_res = $next_stmt->get_result()->fetch_assoc();
-$next_id = $next_res ? $next_res['id'] : null;
-?>
+$next_id = ($next_stmt->get_result()->fetch_assoc())['id'] ?? null;
 
+$avatar = strtoupper(substr($user, 0, 1));
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title><?php echo htmlspecialchars($module['title']); ?> - Training</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <style>
-        .content-container { background: white; border-radius: 15px; margin-top: -80px; padding: 40px; position: relative; z-index: 10; }
-        .module-header { background: #0d6efd; background: linear-gradient(135deg, #0d6efd 0%, #0044cc 100%); color: white; padding: 100px 0 140px 0; text-align: center; }
-        .video-box { background: #000; border-radius: 12px; overflow: hidden; margin: 30px 0; box-shadow: 0 10px 30px rgba(0,0,0,0.3); }
-        .nav-buttons { display: flex; justify-content: space-between; margin-top: 50px; border-top: 1px solid #eee; padding-top: 30px; }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title><?= htmlspecialchars($module['title']) ?> — TeamQuest Training</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="assets/css/styles.css">
 </head>
-<body class="bg-light">
+<body>
+<div class="tq-shell">
 
-    <div class="module-header">
-        <div class="container">
-            <h1 class="display-4 fw-bold"><?php echo htmlspecialchars($module['title']); ?></h1>
-            <p class="opacity-75">Department: <?php echo htmlspecialchars($module['department']); ?></p>
-        </div>
+  <!-- TOPBAR -->
+  <header class="tq-topbar">
+    <img src="Images/Logo.png" class="tq-logo" alt="TeamQuest">
+    <span class="tq-page-title"><?= htmlspecialchars($module['title']) ?></span>
+    <div class="tq-user-badge">
+      <div class="tq-avatar"><?= $avatar ?></div>
+      <span><?= htmlspecialchars($user) ?></span>
     </div>
+  </header>
 
-    <div class="container mb-5">
-        <div class="row justify-content-center">
-            <div class="col-lg-10 content-container shadow-sm">
-                
-                <a href="EMPLOYEE.php" class="btn btn-outline-secondary mb-4">&larr; Back to Dashboard</a>
+  <div class="tq-body">
 
-                <div class="row">
-                    <div class="col-12">
-                        <h3 class="text-primary mb-3 text-uppercase fw-bold">Introduction</h3>
-                        <p class="fs-5 text-dark"><?php echo nl2br(htmlspecialchars($module['description'])); ?></p>
-                        <hr class="my-4">
-                    </div>
-                    
-                    <div class="col-12 mt-2">
-                        <h4 class="fw-bold mb-3">Module Information</h4>
-                        <div class="lh-lg" style="font-size: 1.1rem; color: #333;">
-                            <?php echo nl2br(htmlspecialchars($module['content'] ?? '')); ?>
-                        </div>
-                    </div>
+    <!-- SIDEBAR -->
+    <nav class="tq-sidebar">
+      <ul class="tq-nav">
+        <li class="tq-nav-item">
+          <a href="EMPLOYEE.php?tab=home" class="tq-nav-link">
+            <i class="bi bi-house-fill"></i><span>Home</span>
+          </a>
+        </li>
+        <li class="tq-nav-item active">
+          <a href="EMPLOYEE.php?tab=modules" class="tq-nav-link">
+            <i class="bi bi-book-fill"></i><span>My Modules</span>
+          </a>
+        </li>
+        <li class="tq-nav-item">
+          <a href="EMPLOYEE.php?tab=gauge" class="tq-nav-link">
+            <i class="bi bi-clipboard-check-fill"></i><span>Gauge Exams</span>
+          </a>
+        </li>
+        <li class="tq-nav-item">
+          <a href="EMPLOYEE.php?tab=results" class="tq-nav-link">
+            <i class="bi bi-bar-chart-fill"></i><span>My Results</span>
+          </a>
+        </li>
+      </ul>
+      <div class="tq-sidebar-footer">
+        <a href="LOGOUT.php" class="tq-logout">
+          <i class="bi bi-box-arrow-right"></i> Logout
+        </a>
+      </div>
+    </nav>
 
-                    <?php if (!empty($module['video'])): ?>
-                    <div class="col-12">
-                        <div class="video-box">
-                            <video width="100%" controls controlsList="nodownload">
-                                <source src="Videos/<?php echo $module['video']; ?>" type="video/mp4">
-                                Your browser does not support the video tag.
-                            </video>
-                        </div>
-                    </div>
-                    <?php endif; ?>
-                </div>
+    <!-- MAIN CONTENT -->
+    <main class="tq-content" style="padding:0;">
 
-                <div class="nav-buttons">
-                    <div>
-                        <?php if ($prev_id): ?>
-                            <a href="view_module.php?id=<?php echo $prev_id; ?>" class="btn btn-outline-primary btn-lg">&larr; Previous Module</a>
-                        <?php endif; ?>
-                    </div>
+      <!-- Hero Header -->
+      <div class="tq-module-hero">
+        <div style="max-width:800px; margin:0 auto; padding:0 24px;">
+          <h1><?= htmlspecialchars($module['title']) ?></h1>
+          <p><i class="bi bi-building me-1"></i>Department: <?= htmlspecialchars($module['department']) ?></p>
+          <!-- Step indicator in hero -->
+          <div style="display:inline-flex; align-items:center; gap:6px; background:rgba(255,255,255,0.12); padding:8px 20px; border-radius:20px; margin-top:12px; font-size:12px;">
+            <span style="<?= $current_step >= 1 ? 'color:#e0a800; font-weight:700;' : 'color:rgba(255,255,255,0.5);' ?>">
+              <i class="bi bi-<?= $current_step > 1 ? 'check-circle-fill' : 'play-circle' ?> me-1"></i>① Watch
+            </span>
+            <span style="color:rgba(255,255,255,0.3); margin:0 4px;">›</span>
+            <span style="<?= $current_step >= 2 ? 'color:#e0a800; font-weight:700;' : 'color:rgba(255,255,255,0.5);' ?>">
+              <i class="bi bi-<?= $current_step > 2 ? 'check-circle-fill' : 'pencil-square' ?> me-1"></i>② Exam
+            </span>
+            <span style="color:rgba(255,255,255,0.3); margin:0 4px;">›</span>
+            <span style="<?= $current_step >= 3 ? 'color:#4ade80; font-weight:700;' : 'color:rgba(255,255,255,0.5);' ?>">
+              <i class="bi bi-<?= $current_step >= 3 ? 'check-circle-fill' : 'bar-chart' ?> me-1"></i>③ Results
+            </span>
+          </div>
+        </div>
+      </div>
 
-                    <div class="text-center">
-                        <?php if ($has_exam): ?>
-                            <a href="take_exam.php?module_id=<?= $id ?>" class="btn btn-success btn-lg px-5 shadow">Take Exam</a>
-                        <?php else: ?>
-                            <button class="btn btn-success btn-lg px-5 shadow" onclick="alert('Module Completed!')">Finish Module</button>
-                        <?php endif; ?>
-                    </div>
+      <!-- Content Card -->
+      <div style="max-width:900px; margin:0 auto; padding:0 24px 48px;">
+        <div class="tq-content-card">
 
-                    <div>
-                        <?php if ($next_id): ?>
-                            <a href="view_module.php?id=<?php echo $next_id; ?>" class="btn btn-outline-primary btn-lg">Next Module &rarr;</a>
-                        <?php endif; ?>
-                    </div>
-                </div>
+          <a href="EMPLOYEE.php?tab=modules" class="btn-tq-outline" style="margin-bottom:24px;">
+            <i class="bi bi-arrow-left"></i> Back to Modules
+          </a>
+
+          <!-- Description -->
+          <div style="margin-bottom:28px;">
+            <div style="font-size:11px; font-weight:700; color:var(--tq-gold); text-transform:uppercase; letter-spacing:1px; margin-bottom:8px;">Introduction</div>
+            <p style="font-size:15px; line-height:1.75; color:var(--tq-text);"><?= nl2br(htmlspecialchars($module['description'])) ?></p>
+          </div>
+
+          <?php if (!empty($module['content'])): ?>
+          <div class="tq-divider"></div>
+          <div style="margin-bottom:28px;">
+            <div style="font-size:11px; font-weight:700; color:var(--tq-gold); text-transform:uppercase; letter-spacing:1px; margin-bottom:8px;">Module Information</div>
+            <div style="font-size:14px; line-height:1.8; color:#333;"><?= nl2br(htmlspecialchars($module['content'])) ?></div>
+          </div>
+          <?php endif; ?>
+
+          <?php if (!empty($module['video'])): ?>
+          <div class="tq-video-box">
+            <video width="100%" controls controlsList="nodownload">
+              <source src="Videos/<?= htmlspecialchars($module['video']) ?>" type="video/mp4">
+              Your browser does not support the video tag.
+            </video>
+          </div>
+          <?php endif; ?>
+
+          <!-- Navigation Buttons -->
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-top:40px; padding-top:28px; border-top:2px solid #eef0f7;">
+            <div>
+              <?php if ($prev_id): ?>
+              <a href="view_module.php?id=<?= $prev_id ?>" class="btn-tq-outline">
+                <i class="bi bi-arrow-left"></i> Previous
+              </a>
+              <?php endif; ?>
             </div>
+
+            <div style="text-align:center;">
+              <?php if ($attempts >= 3): ?>
+              <span class="tq-badge tq-badge-danger" style="padding:10px 20px; font-size:13px;">
+                <i class="bi bi-lock-fill me-1"></i> Max Attempts Reached
+              </span>
+              <?php elseif ($has_exam): ?>
+              <a href="take_exam.php?module_id=<?= $id ?>" class="btn-tq-gold" style="padding:12px 32px; font-size:15px;">
+                <i class="bi bi-pencil-square"></i>
+                <?= $exam_done ? 'Retake Exam' : 'Take Exam' ?>
+              </a>
+              <?php else: ?>
+              <button class="btn-tq-gold" style="padding:12px 32px; font-size:15px;" onclick="alert('Module Completed!')">
+                <i class="bi bi-check-circle"></i> Finish Module
+              </button>
+              <?php endif; ?>
+              <?php if ($exam_done): ?>
+              <div style="margin-top:10px; font-size:12px; color:var(--tq-muted);">
+                Last attempt: <?= $result_row['score'] ?> / <?= $result_row['total_questions'] ?> —
+                <span style="color:<?= $passed ? 'var(--tq-success)' : 'var(--tq-danger)' ?>; font-weight:600;"><?= $passed ? 'Passed' : 'Failed' ?></span>
+              </div>
+              <?php endif; ?>
+            </div>
+
+            <div>
+              <?php if ($next_id): ?>
+              <a href="view_module.php?id=<?= $next_id ?>" class="btn-tq-outline">
+                Next <i class="bi bi-arrow-right"></i>
+              </a>
+              <?php endif; ?>
+            </div>
+          </div>
+
         </div>
-    </div>
+      </div>
 
-    <footer class="text-center py-4 text-muted">
-        &copy; 2026 TeamQuest E-Learning
-    </footer>
-
+    </main>
+  </div>
+</div>
+<script src="assets/js/scripts.js"></script>
 </body>
 </html>
