@@ -10,7 +10,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $att_check = $conn->query("SELECT attempts FROM exam_results WHERE username = '$username' AND module_id = $module_id");
     if ($att_check && $att_check->num_rows > 0) {
         if ($att_check->fetch_assoc()['attempts'] >= 3) {
-            echo "<script>alert('ERROR: You have reached the max attempts (3).'); window.location.href = 'EMPLOYEE.php';</script>";
+            header("Location: EMPLOYEE.php?tab=gauge&error=locked");
             exit();
         }
     }
@@ -24,7 +24,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
     // Safety check for empty Answer Key
     if (count($correct_map) < 50) {
-        echo "<script>alert('ERROR: Master Answer Key missing. Contact admin.'); window.location.href = 'EMPLOYEE.php';</script>";
+        header("Location: EMPLOYEE.php?tab=gauge&error=nokey");
         exit();
     }
 
@@ -54,6 +54,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $stmt->bind_param("siiis", $username, $module_id, $score, $total_questions, $wrong_json);
     $stmt->execute();
 
-    header("Location: EMPLOYEE.php");
+    header("Location: view_gauge_mistakes.php?module_id=" . $module_id);
     exit();
 }

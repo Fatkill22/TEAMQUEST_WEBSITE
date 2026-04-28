@@ -103,26 +103,48 @@ $avatar    = strtoupper(substr($username, 0, 1));
     </main>
   </div>
 </div>
-<script src="assets/js/scripts.js"></script>
+<script src="assets/js/scripts.js?v=4"></script>
 <script>
-// Auto-advance to next row on toggle click
+// Self-contained toggle handler — runs immediately, no DOMContentLoaded needed
+// since this script sits after all the HTML. Sets _gaugeHandled so scripts.js skips these.
 document.querySelectorAll('.tq-toggle-btn').forEach(function(btn) {
+  btn._gaugeHandled = true;
   btn.addEventListener('click', function() {
-    const wrap  = this.closest('tr');
-    const next  = wrap.nextElementSibling;
+    var val  = this.dataset.val;
+    var row  = this.closest('tr');
+    var wrap = this.closest('.tq-toggle-wrap');
+
+    // Update the hidden input that lives in the same <tr>
+    var hidden = row.querySelector('input[type="hidden"]');
+    if (hidden) hidden.value = val;
+
+    // Update visual active state
+    wrap.querySelectorAll('.tq-toggle-btn').forEach(function(b) {
+      b.classList.remove('active-0', 'active-1');
+    });
+    this.classList.add('active-' + val);
+
+    // Auto-advance focus to next row
+    var next = row.nextElementSibling;
     if (next) {
-      const firstBtn = next.querySelector('.tq-toggle-btn');
+      var firstBtn = next.querySelector('.tq-toggle-btn');
       if (firstBtn) firstBtn.focus();
     }
   });
 });
+
+// Validate all 50 answered before submit
 document.querySelector('form').addEventListener('submit', function(e) {
-  const hidden = this.querySelectorAll('input[type="hidden"][name^="q_"]');
-  let missing = false;
+  var hidden = this.querySelectorAll('input[type="hidden"][name^="q_"]');
+  var missing = false;
   hidden.forEach(function(inp) { if (inp.value === '') missing = true; });
   if (missing) {
     e.preventDefault();
-    tqToast('Please answer all 50 items before submitting.', 'error');
+    if (typeof tqToast === 'function') {
+      tqToast('Please answer all 50 items before submitting.', 'error');
+    } else {
+      alert('Please answer all 50 items before submitting.');
+    }
   }
 });
 </script>

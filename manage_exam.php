@@ -9,7 +9,7 @@ if (!isset($_SESSION['username']) || $_SESSION['roles'] != 'admin') {
 
 $module_id = isset($_GET['module_id']) ? (int)$_GET['module_id'] : 0;
 
-if (isset($_POST['add_question'])) {
+if (isset($_POST['add_question']) || (isset($_POST['_action']) && $_POST['_action'] === 'add_question')) {
     $q_text  = $_POST['question_text'];
     $a       = $_POST['option_a'];
     $b       = $_POST['option_b'];
@@ -94,6 +94,7 @@ $avatar      = strtoupper(substr($admin_user, 0, 1));
             </div>
             <div class="tq-card-body">
               <form method="POST">
+                <input type="hidden" name="_action" value="add_question">
                 <div class="tq-form-group">
                   <label class="tq-label">Question Text</label>
                   <textarea name="question_text" class="tq-textarea" placeholder="Enter the question" required style="min-height:80px;"></textarea>

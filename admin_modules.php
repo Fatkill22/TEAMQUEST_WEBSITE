@@ -11,7 +11,7 @@ if (!isset($_SESSION['username']) || $_SESSION['roles'] != 'admin') {
     exit();
 }
 
-if (isset($_POST['add'])) {
+if (isset($_POST['add']) || (isset($_POST['_action']) && $_POST['_action'] === 'add')) {
     $title       = $_POST['title'];
     $description = $_POST['description'];
     $content     = $_POST['content'];
@@ -44,7 +44,10 @@ if (isset($_GET['reset_user']) && isset($_GET['mid'])) {
 
 if (isset($_GET['delete'])) {
     $id = (int)$_GET['delete'];
-    $conn->query("DELETE FROM modules WHERE id=$id");
+    $conn->query("DELETE FROM questions    WHERE module_id = $id");
+    $conn->query("DELETE FROM exam_results WHERE module_id = $id");
+    $conn->query("DELETE FROM gauge_answers WHERE module_id = $id");
+    $conn->query("DELETE FROM modules      WHERE id = $id");
     header("Location: admin_modules.php?tab=admin&deleted=1");
     exit();
 }
@@ -205,6 +208,9 @@ $avatar     = strtoupper(substr($admin_user, 0, 1));
                   <td><span class="tq-badge <?= $is_g ? 'tq-badge-warning' : 'tq-badge-navy' ?>"><?= $is_g ? 'Gauge' : 'Module' ?></span></td>
                   <td>
                     <?php if (!$is_g): ?>
+                    <a href="edit_module.php?id=<?= $m['id'] ?>" class="btn-tq-outline" style="padding:5px 10px; font-size:12px;">
+                      <i class="bi bi-pencil"></i>
+                    </a>
                     <a href="manage_exam.php?module_id=<?= $m['id'] ?>" class="btn-tq-primary" style="padding:5px 12px; font-size:12px;">
                       <i class="bi bi-question-circle"></i> Quiz
                     </a>
@@ -255,6 +261,7 @@ $avatar     = strtoupper(substr($admin_user, 0, 1));
             </div>
             <div class="tq-card-body">
               <form method="POST" enctype="multipart/form-data">
+                <input type="hidden" name="_action" value="add">
                 <div class="tq-form-row">
                   <div class="tq-form-group" style="margin-bottom:0;">
                     <label class="tq-label">Title <small style="color:var(--tq-muted); font-weight:400;">(include "Gauge" for gauge studies)</small></label>
@@ -313,6 +320,9 @@ $avatar     = strtoupper(substr($admin_user, 0, 1));
                   <td style="font-weight:500;"><?= htmlspecialchars($m['title']) ?></td>
                   <td><?= htmlspecialchars($m['department']) ?></td>
                   <td style="text-align:center;">
+                    <a href="edit_module.php?id=<?= $m['id'] ?>" class="btn-tq-outline" style="padding:6px 14px; font-size:12px;">
+                      <i class="bi bi-pencil"></i> Edit
+                    </a>
                     <a href="manage_exam.php?module_id=<?= $m['id'] ?>" class="btn-tq-primary" style="padding:6px 14px; font-size:12px;">
                       <i class="bi bi-question-circle"></i> Manage Quiz
                     </a>

@@ -20,4 +20,88 @@ Summary nung performance
 
 INSERT INTO users (username, password)
 VALUES ('your_username', 'your_password');	
-	
+
+
+Step 1 — Run this first. It creates all 5 tables with the correct structure. If a table already exists it is left alone (your data is safe):
+
+
+-- ── USERS ────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS `users` (
+  `id`         INT          NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  `firstname`  VARCHAR(100) NOT NULL DEFAULT '',
+  `lastname`   VARCHAR(100) NOT NULL DEFAULT '',
+  `empnumber`  VARCHAR(50)  NOT NULL DEFAULT '',
+  `username`   VARCHAR(100) NOT NULL,
+  `password`   VARCHAR(255) NOT NULL DEFAULT '',
+  `department` VARCHAR(100) NOT NULL DEFAULT '',
+  `position`   VARCHAR(100) NOT NULL DEFAULT '',
+  `roles`      VARCHAR(50)  NOT NULL DEFAULT 'employee'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ── MODULES ──────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS `modules` (
+  `id`          INT           NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  `title`       VARCHAR(255)  NOT NULL,
+  `description` TEXT,
+  `content`     TEXT,
+  `image`       VARCHAR(255)  NOT NULL DEFAULT '',
+  `video`       VARCHAR(255)  NOT NULL DEFAULT '',
+  `department`  VARCHAR(100)  NOT NULL DEFAULT 'all'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ── QUESTIONS ────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS `questions` (
+  `id`             INT          NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  `module_id`      INT          NOT NULL,
+  `question_text`  TEXT         NOT NULL,
+  `option_a`       VARCHAR(500) NOT NULL DEFAULT '',
+  `option_b`       VARCHAR(500) NOT NULL DEFAULT '',
+  `option_c`       VARCHAR(500) NOT NULL DEFAULT '',
+  `option_d`       VARCHAR(500) NOT NULL DEFAULT '',
+  `correct_option` VARCHAR(1)   NOT NULL DEFAULT 'A',
+  INDEX (`module_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ── EXAM RESULTS ─────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS `exam_results` (
+  `id`              INT          NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  `username`        VARCHAR(100) NOT NULL,
+  `module_id`       INT          NOT NULL,
+  `score`           INT          NOT NULL DEFAULT 0,
+  `total_questions` INT          NOT NULL DEFAULT 0,
+  `wrong_questions` TEXT,
+  `attempts`        INT          NOT NULL DEFAULT 1,
+  UNIQUE KEY `user_module` (`username`, `module_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ── GAUGE ANSWERS ─────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS `gauge_answers` (
+  `module_id`    INT NOT NULL,
+  `question_num` INT NOT NULL,
+  `correct_val`  INT NOT NULL DEFAULT 0,
+  PRIMARY KEY (`module_id`, `question_num`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+Step 2 — Run this second. It safely adds any columns that might be missing from tables that already existed (using IF NOT EXISTS so it won't error if the column is already there):
+
+
+-- Users: add any missing columns
+ALTER TABLE `users`
+  ADD COLUMN IF NOT EXISTS `firstname`  VARCHAR(100) NOT NULL DEFAULT '' AFTER `id`,
+  ADD COLUMN IF NOT EXISTS `lastname`   VARCHAR(100) NOT NULL DEFAULT '' AFTER `firstname`,
+  ADD COLUMN IF NOT EXISTS `empnumber`  VARCHAR(50)  NOT NULL DEFAULT '' AFTER `lastname`,
+  ADD COLUMN IF NOT EXISTS `department` VARCHAR(100) NOT NULL DEFAULT '' AFTER `password`,
+  ADD COLUMN IF NOT EXISTS `position`   VARCHAR(100) NOT NULL DEFAULT '' AFTER `department`,
+  ADD COLUMN IF NOT EXISTS `roles`      VARCHAR(50)  NOT NULL DEFAULT 'employee' AFTER `position`;
+
+-- Modules: add any missing columns
+ALTER TABLE `modules`
+  ADD COLUMN IF NOT EXISTS `description` TEXT         AFTER `title`,
+  ADD COLUMN IF NOT EXISTS `content`     TEXT         AFTER `description`,
+  ADD COLUMN IF NOT EXISTS `image`       VARCHAR(255) NOT NULL DEFAULT '' AFTER `content`,
+  ADD COLUMN IF NOT EXISTS `video`       VARCHAR(255) NOT NULL DEFAULT '' AFTER `image`,
+  ADD COLUMN IF NOT EXISTS `department`  VARCHAR(100) NOT NULL DEFAULT 'all' AFTER `video`;
+
+-- Exam results: add any missing columns
+ALTER TABLE `exam_results`
+  ADD COLUMN IF NOT EXISTS `wrong_questions` TEXT AFTER `total_questions`,
+  ADD COLUMN IF NOT EXISTS `attempts`        INT  NOT NULL DEFAULT 1 AFTER `wrong_questions`;

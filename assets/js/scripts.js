@@ -23,19 +23,27 @@
 })();
 
 /* === LOADING BUTTONS === */
+// NOTE: we must NOT set btn.disabled=true — disabled buttons are excluded from
+// POST data by the browser, which breaks all named submit-button checks in PHP.
+// Instead we flag the form itself to block double-submissions.
 document.addEventListener('submit', function (e) {
   const form = e.target;
+  if (form.dataset.submitting === '1') { e.preventDefault(); return; }
+  // If a form-level validation handler already cancelled submission, don't lock
+  if (e.defaultPrevented) return;
+  form.dataset.submitting = '1';
+
   const btn = form.querySelector('button[type="submit"]:not([data-no-load])');
-  if (btn && !btn.dataset.loading) {
-    btn.dataset.loading = '1';
+  if (btn) {
     btn.dataset.origHtml = btn.innerHTML;
     btn.innerHTML = '<span class="tq-spinner"></span> Processing…';
-    btn.disabled = true;
-    // Safety re-enable after 10 s in case of error
+    btn.style.pointerEvents = 'none';
+    btn.style.opacity = '0.7';
     setTimeout(function () {
       btn.innerHTML = btn.dataset.origHtml || btn.innerHTML;
-      btn.disabled = false;
-      delete btn.dataset.loading;
+      btn.style.pointerEvents = '';
+      btn.style.opacity = '';
+      delete form.dataset.submitting;
     }, 10000);
   }
 });
@@ -129,13 +137,18 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 
 /* === GAUGE TOGGLE BUTTONS === */
+// Skip buttons already handled by a page-level self-contained script (_gaugeHandled flag).
+// For remaining buttons, find the hidden input by id (data-target) with a DOM-proximity fallback.
 document.addEventListener('DOMContentLoaded', function () {
   document.querySelectorAll('.tq-toggle-btn').forEach(function (btn) {
+    if (btn._gaugeHandled) return;
     btn.addEventListener('click', function () {
-      const val    = this.dataset.val;
-      const target = this.dataset.target;
-      const input  = document.querySelector('input[name="' + target + '"]');
-      const wrap   = this.closest('.tq-toggle-wrap');
+      var val  = this.dataset.val;
+      var wrap = this.closest('.tq-toggle-wrap');
+
+      // Try getElementById first, then nearest hidden input in the same parent
+      var input = (this.dataset.target ? document.getElementById(this.dataset.target) : null)
+               || wrap.parentElement.querySelector('input[type="hidden"]');
 
       wrap.querySelectorAll('.tq-toggle-btn').forEach(function (b) {
         b.classList.remove('active-0', 'active-1');
@@ -194,5 +207,8 @@ document.addEventListener('DOMContentLoaded', function () {
   if (p.get('deleted') === '1') tqToast('Item deleted.', 'info');
   if (p.get('reset')   === '1') tqToast('Progress reset successfully.', 'success');
   if (p.get('error')   === '1') tqToast('Something went wrong. Please try again.', 'error');
+  if (p.get('error')   === 'invalid') tqToast('Invalid username or password.', 'error');
+  if (p.get('error')   === 'locked')  tqToast('You have reached the maximum 3 attempts for this exam.', 'error');
+  if (p.get('error')   === 'nokey')   tqToast('Answer key not set up yet — contact your admin.', 'error');
   if (p.get('added')   === '1') tqToast('Question added!', 'success');
 });

@@ -6,12 +6,14 @@ if (!isset($_SESSION['username']) || $_SESSION['roles'] != 'admin') { die("Acces
 
 $module_id = (int)$_GET['id'];
 
-if (isset($_POST['save_master_key'])) {
+if (isset($_POST['save_master_key']) || (isset($_POST['_action']) && $_POST['_action'] === 'save_master_key')) {
+    // Delete all existing answers for this module first, then re-insert.
+    // This avoids ON DUPLICATE KEY issues when the table has an auto-increment id PK.
+    $conn->query("DELETE FROM gauge_answers WHERE module_id = $module_id");
     for ($i = 1; $i <= 50; $i++) {
         $val = isset($_POST["ans_$i"]) ? (int)$_POST["ans_$i"] : 0;
         $conn->query("INSERT INTO gauge_answers (module_id, question_num, correct_val)
-                      VALUES ($module_id, $i, $val)
-                      ON DUPLICATE KEY UPDATE correct_val = $val");
+                      VALUES ($module_id, $i, $val)");
     }
     header("Location: admin_modules.php?tab=gauge-admin&saved=1");
     exit();
@@ -77,6 +79,7 @@ $avatar     = strtoupper(substr($admin_user, 0, 1));
         </div>
 
         <form method="POST">
+          <input type="hidden" name="_action" value="save_master_key">
           <div class="tq-card">
             <!-- 10-column × 5-row grid -->
             <div style="padding:20px;">
@@ -119,6 +122,27 @@ $avatar     = strtoupper(substr($admin_user, 0, 1));
     </main>
   </div>
 </div>
-<script src="assets/js/scripts.js"></script>
+<script src="assets/js/scripts.js?v=4"></script>
+<script>
+// Self-contained toggle handler for answer key editor.
+// The hidden input sits just before .tq-toggle-wrap inside the same parent div.
+document.querySelectorAll('.tq-toggle-btn').forEach(function(btn) {
+  btn._gaugeHandled = true;
+  btn.addEventListener('click', function() {
+    var val  = this.dataset.val;
+    var wrap = this.closest('.tq-toggle-wrap');
+
+    // Hidden input is a sibling of .tq-toggle-wrap inside the same container div
+    var hidden = wrap.parentElement.querySelector('input[type="hidden"]');
+    if (hidden) hidden.value = val;
+
+    // Update visual active state
+    wrap.querySelectorAll('.tq-toggle-btn').forEach(function(b) {
+      b.classList.remove('active-0', 'active-1');
+    });
+    this.classList.add('active-' + val);
+  });
+});
+</script>
 </body>
 </html>
