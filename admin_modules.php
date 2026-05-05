@@ -38,16 +38,21 @@ if (isset($_GET['reset_user']) && isset($_GET['mid'])) {
     $stmt->bind_param("si", $user_to_reset, $mid);
     $stmt->execute();
     $stmt->close();
+    $stmt2 = $conn->prepare("DELETE FROM gauge_attempt_details WHERE username = ? AND module_id = ?");
+    $stmt2->bind_param("si", $user_to_reset, $mid);
+    $stmt2->execute();
+    $stmt2->close();
     header("Location: admin_modules.php?tab=users&reset=1");
     exit();
 }
 
 if (isset($_GET['delete'])) {
     $id = (int)$_GET['delete'];
-    $conn->query("DELETE FROM questions    WHERE module_id = $id");
-    $conn->query("DELETE FROM exam_results WHERE module_id = $id");
-    $conn->query("DELETE FROM gauge_answers WHERE module_id = $id");
-    $conn->query("DELETE FROM modules      WHERE id = $id");
+    $conn->query("DELETE FROM questions             WHERE module_id = $id");
+    $conn->query("DELETE FROM exam_results          WHERE module_id = $id");
+    $conn->query("DELETE FROM gauge_answers         WHERE module_id = $id");
+    $conn->query("DELETE FROM gauge_attempt_details WHERE module_id = $id");
+    $conn->query("DELETE FROM modules               WHERE id = $id");
     header("Location: admin_modules.php?tab=admin&deleted=1");
     exit();
 }

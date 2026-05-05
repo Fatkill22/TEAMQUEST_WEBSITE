@@ -47,9 +47,22 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
     $wrong_json = json_encode($wrong_answers);
 
+    // Store full per-attempt answers for Excel export
+    $full_answers = [];
+    for ($i = 1; $i <= 50; $i++) {
+        $key = 'q_' . $i;
+        $full_answers[$i] = (isset($_POST[$key]) && $_POST[$key] !== '') ? (int)$_POST[$key] : 0;
+    }
+    $full_json = json_encode($full_answers);
+    $att_cnt_res = $conn->query("SELECT COUNT(*) as cnt FROM gauge_attempt_details WHERE username = '" . $conn->real_escape_string($username) . "' AND module_id = $module_id");
+    $attempt_num = ($att_cnt_res ? (int)$att_cnt_res->fetch_assoc()['cnt'] : 0) + 1;
+    $stmt_det = $conn->prepare("INSERT IGNORE INTO gauge_attempt_details (username, module_id, attempt_num, answers_json) VALUES (?, ?, ?, ?)");
+    $stmt_det->bind_param("siis", $username, $module_id, $attempt_num, $full_json);
+    $stmt_det->execute();
+
     // Save
-    $stmt = $conn->prepare("INSERT INTO exam_results (username, module_id, score, total_questions, attempts, wrong_questions) 
-                            VALUES (?, ?, ?, ?, 1, ?) 
+    $stmt = $conn->prepare("INSERT INTO exam_results (username, module_id, score, total_questions, attempts, wrong_questions)
+                            VALUES (?, ?, ?, ?, 1, ?)
                             ON DUPLICATE KEY UPDATE score = VALUES(score), attempts = attempts + 1, wrong_questions = VALUES(wrong_questions)");
     $stmt->bind_param("siiis", $username, $module_id, $score, $total_questions, $wrong_json);
     $stmt->execute();

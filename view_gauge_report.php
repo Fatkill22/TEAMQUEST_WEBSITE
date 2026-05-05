@@ -19,6 +19,11 @@ while ($row = $key_query->fetch_assoc()) {
 $results_query = $conn->query("SELECT username, score, wrong_questions FROM exam_results WHERE module_id = $module_id ORDER BY score DESC");
 $all_rows      = $results_query ? $results_query->fetch_all(MYSQLI_ASSOC) : [];
 
+// Users who have all 3 attempt details stored (eligible for Excel export)
+$detail_counts = [];
+$dc_res = $conn->query("SELECT username, COUNT(*) as cnt FROM gauge_attempt_details WHERE module_id = $module_id GROUP BY username");
+if ($dc_res) while ($r = $dc_res->fetch_assoc()) $detail_counts[$r['username']] = (int)$r['cnt'];
+
 function effColor($v)  { return $v >= 90 ? 'tq-badge-success' : ($v >= 80 ? 'tq-badge-warning' : 'tq-badge-danger'); }
 function missColor($v) { return $v <= 2  ? 'tq-badge-success' : ($v <= 5  ? 'tq-badge-warning' : 'tq-badge-danger'); }
 function alarmColor($v){ return $v <= 5  ? 'tq-badge-success' : ($v <= 10 ? 'tq-badge-warning' : 'tq-badge-danger'); }
@@ -259,9 +264,60 @@ $avatar     = strtoupper(substr($admin_user, 0, 1));
       </div>
 
       <?= $modals_html ?>
+
+      <?php
+      $eligible = array_filter(array_column($all_rows, 'username'), function($u) use ($detail_counts) {
+          return ($detail_counts[$u] ?? 0) >= 3;
+      });
+      $eligible = array_values($eligible);
+      ?>
+
+      <!-- Excel Export Section -->
+      <div class="tq-card" style="margin-top:20px; border-left:5px solid var(--tq-gold);">
+        <div class="tq-card-header">
+          <i class="bi bi-file-earmark-excel-fill me-2" style="color:var(--tq-gold);"></i>
+          Export to Excel — Attribute GR&amp;R Template
+        </div>
+        <div class="tq-card-body">
+          <?php if (empty($eligible)): ?>
+          <div class="tq-empty" style="padding:20px 0;">
+            <span class="tq-empty-icon"><i class="bi bi-hourglass-split"></i></span>
+            <div class="tq-empty-text">No appraisers have completed all 3 attempts yet</div>
+            <div class="tq-empty-sub">Once 3 appraisers each finish 3 exam attempts, you can export their data to the Excel template.</div>
+          </div>
+          <?php else: ?>
+          <p style="font-size:13px; color:var(--tq-muted); margin-bottom:16px;">
+            Select exactly 3 appraisers with completed attempts. They will fill <strong>Appraiser A</strong>, <strong>B</strong>, and <strong>C</strong> columns in the Excel template in the order you check them.
+          </p>
+          <form action="export_gauge_excel.php" method="POST">
+            <input type="hidden" name="module_id" value="<?= $module_id ?>">
+            <input type="hidden" name="appraiser_a" id="exp_a" value="">
+            <input type="hidden" name="appraiser_b" id="exp_b" value="">
+            <input type="hidden" name="appraiser_c" id="exp_c" value="">
+
+            <div id="export-user-list" style="display:flex; flex-direction:column; gap:8px; margin-bottom:20px;">
+              <?php foreach ($eligible as $eu): ?>
+              <label class="export-user-row" style="display:flex; align-items:center; gap:12px; padding:10px 14px; border:1px solid #dde0ee; border-radius:8px; cursor:pointer; transition:border-color .15s;">
+                <input type="checkbox" class="exp-check" value="<?= htmlspecialchars($eu) ?>" style="width:17px; height:17px; cursor:pointer; accent-color:var(--tq-navy);">
+                <span style="font-weight:600; flex:1;"><?= htmlspecialchars($eu) ?></span>
+                <span class="exp-role-badge" style="display:none; font-size:11px; font-weight:700; padding:3px 10px; border-radius:20px; background:var(--tq-gold); color:#fff;"></span>
+                <span class="tq-badge tq-badge-success" style="font-size:11px;"><i class="bi bi-check-circle me-1"></i>3 attempts</span>
+              </label>
+              <?php endforeach; ?>
+            </div>
+
+            <button type="submit" id="exp-submit-btn" class="btn-tq-gold" disabled style="width:100%; justify-content:center; height:46px; font-size:14px;">
+              <i class="bi bi-file-earmark-arrow-down-fill"></i>
+              <span id="exp-btn-label">Export to Excel (0 / 3 selected)</span>
+            </button>
+          </form>
+          <?php endif; ?>
+        </div>
+      </div>
+
       <?php endif; ?>
 
-      <a href="admin_modules.php?tab=gauge-admin" class="btn-tq-outline">
+      <a href="admin_modules.php?tab=gauge-admin" class="btn-tq-outline" style="margin-top:16px;">
         <i class="bi bi-arrow-left"></i> Back to Admin
       </a>
 
@@ -272,6 +328,59 @@ $avatar     = strtoupper(substr($admin_user, 0, 1));
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="assets/js/scripts.js"></script>
+<script>
+(function () {
+  var checks  = document.querySelectorAll('.exp-check');
+  var expA    = document.getElementById('exp_a');
+  var expB    = document.getElementById('exp_b');
+  var expC    = document.getElementById('exp_c');
+  var expBtn  = document.getElementById('exp-submit-btn');
+  var expLbl  = document.getElementById('exp-btn-label');
+  if (!checks.length) return;
+
+  var roles   = ['Appraiser A', 'Appraiser B', 'Appraiser C'];
+  var colors  = ['#1a3a6b', '#c8960c', '#16a34a'];
+
+  function refresh() {
+    var selected = [];
+    checks.forEach(function (cb) { if (cb.checked) selected.push(cb.value); });
+
+    // Assign hidden inputs
+    if (expA) expA.value = selected[0] || '';
+    if (expB) expB.value = selected[1] || '';
+    if (expC) expC.value = selected[2] || '';
+
+    // Update visual badges on each row
+    checks.forEach(function (cb) {
+      var row   = cb.closest('.export-user-row');
+      var badge = row.querySelector('.exp-role-badge');
+      var idx   = selected.indexOf(cb.value);
+      if (idx >= 0) {
+        badge.textContent = roles[idx];
+        badge.style.background = colors[idx];
+        badge.style.display = '';
+        row.style.borderColor = colors[idx];
+      } else {
+        badge.style.display = 'none';
+        row.style.borderColor = '#dde0ee';
+      }
+    });
+
+    var n = selected.length;
+    if (expBtn) expBtn.disabled = (n !== 3);
+    if (expLbl) expLbl.textContent = 'Export to Excel (' + n + ' / 3 selected)';
+  }
+
+  checks.forEach(function (cb) {
+    cb.addEventListener('change', function () {
+      var selected = [];
+      checks.forEach(function (c) { if (c.checked) selected.push(c.value); });
+      if (selected.length > 3) { this.checked = false; }
+      refresh();
+    });
+  });
+})();
+</script>
 <script>
 var ctx = document.getElementById('gaugeDonut');
 if (ctx) {

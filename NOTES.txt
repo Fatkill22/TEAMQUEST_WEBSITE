@@ -105,3 +105,13 @@ ALTER TABLE `modules`
 ALTER TABLE `exam_results`
   ADD COLUMN IF NOT EXISTS `wrong_questions` TEXT AFTER `total_questions`,
   ADD COLUMN IF NOT EXISTS `attempts`        INT  NOT NULL DEFAULT 1 AFTER `wrong_questions`;
+
+  CREATE TABLE IF NOT EXISTS gauge_attempt_details (
+  id           INT AUTO_INCREMENT PRIMARY KEY,
+  username     VARCHAR(100) NOT NULL,
+  module_id    INT NOT NULL,
+  attempt_num  TINYINT NOT NULL,
+  answers_json TEXT NOT NULL,
+  submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_attempt (username, module_id, attempt_num)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
