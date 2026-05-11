@@ -71,59 +71,46 @@ $zip->addFromString('xl/workbook.xml', $wbXml);
 
 // ════════════════════════════════════════════════════════════════
 // STEP 2 — Inject green + red fill styles into styles.xml
+// Pure string manipulation: avoids DOMDocument adding redundant
+// xmlns="..." on every new element, which breaks Excel 2007.
 // ════════════════════════════════════════════════════════════════
-$stylesDom = new DOMDocument();
-$stylesDom->loadXML($zip->getFromName('xl/styles.xml'));
-$sxp  = new DOMXPath($stylesDom);
-$sns  = $stylesDom->documentElement->namespaceURI ?: '';
+$stylesXml = $zip->getFromName('xl/styles.xml');
 
-// ── Add two solid fills (appended → indices fillCount and fillCount+1) ──
-$fillsEl   = $sxp->query("//*[local-name()='fills']")->item(0);
-$fillCount = (int)$fillsEl->getAttribute('count');
+// Read the current fill count so new fills get the right indices.
+preg_match('/<fills count="(\d+)"/', $stylesXml, $fm);
+$fillCount = (int)($fm[1] ?? 12);   // green → $fillCount, red → $fillCount+1
 
-foreach (['FF92D050' => 'green', 'FFFF4444' => 'red'] as $rgb => $_) {
-    $fill = mkEl($stylesDom, $sns, 'fill');
-    $pat  = mkEl($stylesDom, $sns, 'patternFill');
-    $pat->setAttribute('patternType', 'solid');
-    $fg = mkEl($stylesDom, $sns, 'fgColor'); $fg->setAttribute('rgb', $rgb);
-    $bg = mkEl($stylesDom, $sns, 'bgColor'); $bg->setAttribute('indexed', '64');
-    $pat->appendChild($fg);
-    $pat->appendChild($bg);
-    $fill->appendChild($pat);
-    $fillsEl->appendChild($fill);
-}
-$fillsEl->setAttribute('count', $fillCount + 2);
+// Append two solid fills just before </fills>.
+$newFills = '<fill><patternFill patternType="solid">'
+          .   '<fgColor rgb="FF92D050"/><bgColor indexed="64"/>'
+          . '</patternFill></fill>'
+          . '<fill><patternFill patternType="solid">'
+          .   '<fgColor rgb="FFFF4444"/><bgColor indexed="64"/>'
+          . '</patternFill></fill>';
+$stylesXml = str_replace('</fills>', $newFills . '</fills>', $stylesXml);
+$stylesXml = preg_replace('/<fills count="\d+"/', '<fills count="' . ($fillCount + 2) . '"', $stylesXml);
 
-// ── Add three xf entries cloned from index 159 (border=46, font=19/black,
-//    center-aligned): green, red, and a reference-column style ──
-// xf[159] already has applyFont="1" and fontId=19 (Arial 10, color theme=1 = black),
-// so all three clones will display black text.
-$xfsEl    = $sxp->query("//*[local-name()='cellXfs']")->item(0);
-$xfList   = $sxp->query("//*[local-name()='cellXfs']/*[local-name()='xf']");
-$xfCount  = $xfList->length;          // green=$xfCount, red=$xfCount+1, ref=$xfCount+2
-$baseXf   = $xfList->item(159);
+// Read the current xf count so new entries get the right indices.
+preg_match('/<cellXfs count="(\d+)"/', $stylesXml, $xm);
+$xfCount = (int)($xm[1] ?? 323);   // green=$xfCount, red=$xfCount+1, ref=$xfCount+2
 
 $greenXfIdx = $xfCount;
 $redXfIdx   = $xfCount + 1;
 $refXfIdx   = $xfCount + 2;
 
-$greenXf = $baseXf->cloneNode(true);
-$greenXf->setAttribute('fillId', $fillCount);        // new green fill
-$xfsEl->appendChild($greenXf);
+// Three new xf entries matching xf[159]'s structure (borderId=46, fontId=19,
+// center-aligned, applyFont="1") so borders and black text are preserved.
+// Only fillId differs between them.
+$xfAttrs = 'numFmtId="0" fontId="19" borderId="46" xfId="1" '
+         . 'applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1" applyProtection="1"';
+$xfBody  = '><alignment horizontal="center"/><protection locked="0"/></xf>';
+$newXfs  = '<xf ' . $xfAttrs . ' fillId="' . $fillCount       . '"' . $xfBody   // green
+         . '<xf ' . $xfAttrs . ' fillId="' . ($fillCount + 1) . '"' . $xfBody   // red
+         . '<xf ' . $xfAttrs . ' fillId="3"'                        . $xfBody;  // ref (light-yellow)
+$stylesXml = str_replace('</cellXfs>', $newXfs . '</cellXfs>', $stylesXml);
+$stylesXml = preg_replace('/<cellXfs count="\d+"/', '<cellXfs count="' . ($xfCount + 3) . '"', $stylesXml);
 
-$redXf = $baseXf->cloneNode(true);
-$redXf->setAttribute('fillId', $fillCount + 1);      // new red fill
-$xfsEl->appendChild($redXf);
-
-// Reference column: light-yellow fill (fill 3 = #FFFFCC already in template)
-// keeps the same borders/font as data cells but visually distinguishes it.
-$refXf = $baseXf->cloneNode(true);
-$refXf->setAttribute('fillId', 3);
-$xfsEl->appendChild($refXf);
-
-$xfsEl->setAttribute('count', $xfCount + 3);
-
-$zip->addFromString('xl/styles.xml', $stylesDom->saveXML());
+$zip->addFromString('xl/styles.xml', $stylesXml);
 
 // ════════════════════════════════════════════════════════════════
 // STEP 3 — Modify sheet11.xml ("N PROD 1" tab)
@@ -139,9 +126,9 @@ $ns    = $sheetDom->documentElement->namespaceURI ?: '';
 // causing the "inverted" green/red colours the user sees. Removing them lets
 // our explicit fill styles on each cell take full effect.
 $cfNodes = $xpath->query("//*[local-name()='conditionalFormatting']");
-foreach ($cfNodes as $cfNode) {
-    $cfNode->parentNode->removeChild($cfNode);
-}
+$cfList = [];
+foreach ($cfNodes as $n) $cfList[] = $n;
+foreach ($cfList as $cfNode) $cfNode->parentNode->removeChild($cfNode);
 
 // Column sort order used when inserting new cells
 $COL_ORDER = array_flip(array_merge(range('A', 'Z'), ['AA','AB','AC','AD','AE','AF']));
