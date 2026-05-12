@@ -278,10 +278,20 @@ $avatar     = strtoupper(substr($admin_user, 0, 1));
                       <option value="all">All Departments</option>
                       <option value="ACCOUNTING">ACCOUNTING</option>
                       <option value="ASEPH BURN-IN">ASEPH BURN-IN</option>
+                      <option value="CML BURN-IN">CML BURN-IN</option>
                       <option value="ENGINEERING">ENGINEERING</option>
+                      <option value="HR/ADMIN">HR/ADMIN</option>
+                      <option value="LOGISTICS">LOGISTICS</option>
+                      <option value="MACHINING">MACHINING</option>
+                      <option value="MARKETING">MARKETING/SALES</option>
+                      <option value="MIS">MIS</option>
+                      <option value="PLANNING">PLANNING</option>
                       <option value="PRODUCTION">PRODUCTION</option>
+                      <option value="PURCHASING">PURCHASING</option>
                       <option value="QA">QA</option>
                       <option value="QA/TRAINING">QA/TRAINING</option>
+                      <option value="STOR">STORE</option>
+                      <option value="WAREHOUSE">WAREHOUSE</option>
                     </select>
                   </div>
                 </div>
