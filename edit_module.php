@@ -27,7 +27,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $title       = trim($_POST['title']       ?? '');
     $description = trim($_POST['description'] ?? '');
     $content     = trim($_POST['content']     ?? '');
-    $department  = $_POST['department'] ?? 'all';
+    $depts_raw   = (array)($_POST['departments'] ?? ['all']);
+    $department  = in_array('all', $depts_raw) ? 'all' : implode(',', array_filter($depts_raw));
 
     $imageName = $module['image'];
     $videoName = $module['video'];
@@ -53,7 +54,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 $admin_user = $_SESSION['username'];
 $avatar     = strtoupper(substr($admin_user, 0, 1));
-$depts      = ["all","ACCOUNTING","ASEPH BURN-IN","ENGINEERING","PRODUCTION","QA","QA/TRAINING"];
+$depts = [
+    'all'          => 'All Departments',
+    'ACCOUNTING'   => 'ACCOUNTING',
+    'ASEPH BURN-IN'=> 'ASEPH BURN-IN',
+    'CML BURN-IN'  => 'CML BURN-IN',
+    'ENGINEERING'  => 'ENGINEERING',
+    'HR/ADMIN'     => 'HR/ADMIN',
+    'LOGISTICS'    => 'LOGISTICS',
+    'MACHINING'    => 'MACHINING',
+    'MARKETING'    => 'MARKETING/SALES',
+    'MIS'          => 'MIS',
+    'PLANNING'     => 'PLANNING',
+    'PRODUCTION'   => 'PRODUCTION',
+    'PURCHASING'   => 'PURCHASING',
+    'QA'           => 'QA',
+    'QA/TRAINING'  => 'QA/TRAINING',
+    'STOR'         => 'STORE',
+    'WAREHOUSE'    => 'WAREHOUSE',
+];
+$saved_depts = array_filter(explode(',', $module['department'] ?? 'all'));
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -63,6 +83,18 @@ $depts      = ["all","ACCOUNTING","ASEPH BURN-IN","ENGINEERING","PRODUCTION","QA
   <title>Edit Module — TeamQuest</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.min.css">
   <link rel="stylesheet" href="assets/css/styles.css">
+  <style>
+    .tq-dept-wrap{position:relative;}
+    .tq-dept-trigger{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border:1px solid var(--tq-border,#dde3ec);border-radius:6px;background:#fff;cursor:pointer;font-size:13px;min-height:38px;user-select:none;}
+    .tq-dept-trigger:hover{border-color:var(--tq-navy,#1a2e4a);}
+    .tq-dept-label{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--tq-text,#2d3748);}
+    .tq-dept-panel{display:none;position:absolute;z-index:200;top:calc(100% + 4px);left:0;right:0;background:#fff;border:1px solid var(--tq-border,#dde3ec);border-radius:6px;box-shadow:0 4px 16px rgba(0,0,0,.12);max-height:240px;overflow-y:auto;padding:6px 0;}
+    .tq-dept-wrap.open .tq-dept-panel{display:block;}
+    .tq-dept-item{display:flex;align-items:center;gap:8px;padding:7px 14px;font-size:13px;cursor:pointer;color:var(--tq-text,#2d3748);}
+    .tq-dept-item:hover{background:var(--tq-light,#f4f7fb);}
+    .tq-dept-item input[type=checkbox]{accent-color:var(--tq-navy,#1a2e4a);width:14px;height:14px;cursor:pointer;}
+    .tq-dept-all{font-weight:600;border-bottom:1px solid var(--tq-border,#dde3ec);margin-bottom:4px;padding-bottom:10px;}
+  </style>
 </head>
 <body>
 <div class="tq-shell">
@@ -114,13 +146,27 @@ $depts      = ["all","ACCOUNTING","ASEPH BURN-IN","ENGINEERING","PRODUCTION","QA
                 </div>
                 <div class="tq-form-group" style="margin-bottom:0;">
                   <label class="tq-label">Department</label>
-                  <select name="department" class="tq-select" required>
-                    <?php foreach ($depts as $d): ?>
-                    <option value="<?= $d ?>" <?= $module['department'] === $d ? 'selected' : '' ?>>
-                      <?= $d === 'all' ? 'All Departments' : $d ?>
-                    </option>
-                    <?php endforeach; ?>
-                  </select>
+                  <div class="tq-dept-wrap" id="deptWrap_edit">
+                    <div class="tq-dept-trigger" onclick="tqDeptToggle('deptWrap_edit')">
+                      <span class="tq-dept-label" id="deptLabel_edit">
+                        <?php
+                          if (in_array('all', $saved_depts) || empty($saved_depts)) echo 'All Departments';
+                          else echo implode(', ', array_map(fn($v) => $depts[$v] ?? $v, $saved_depts));
+                        ?>
+                      </span>
+                      <i class="bi bi-chevron-down" style="font-size:11px;"></i>
+                    </div>
+                    <div class="tq-dept-panel" id="deptPanel_edit">
+                      <?php foreach ($depts as $val => $label): ?>
+                      <label class="tq-dept-item<?= $val === 'all' ? ' tq-dept-all' : '' ?>">
+                        <input type="checkbox" name="departments[]" value="<?= $val ?>"
+                               <?= in_array($val, $saved_depts) || (empty($saved_depts) && $val === 'all') ? 'checked' : '' ?>
+                               onchange="tqDeptChange('deptWrap_edit', this)">
+                        <?= $label ?>
+                      </label>
+                      <?php endforeach; ?>
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -173,5 +219,34 @@ $depts      = ["all","ACCOUNTING","ASEPH BURN-IN","ENGINEERING","PRODUCTION","QA
   </div>
 </div>
 <script src="assets/js/scripts.js"></script>
+<script>
+function tqDeptToggle(wrapId) {
+    const wrap = document.getElementById(wrapId);
+    const isOpen = wrap.classList.toggle('open');
+    if (isOpen) {
+        document.addEventListener('click', function handler(e) {
+            if (!wrap.contains(e.target)) { wrap.classList.remove('open'); document.removeEventListener('click', handler); }
+        });
+    }
+}
+function tqDeptChange(wrapId, cb) {
+    const wrap   = document.getElementById(wrapId);
+    const all    = wrap.querySelector('input[value="all"]');
+    const others = Array.from(wrap.querySelectorAll('input[type=checkbox]')).filter(i => i.value !== 'all');
+    if (cb.value === 'all') {
+        others.forEach(i => { i.checked = false; i.disabled = cb.checked; });
+    } else {
+        if (cb.checked) { all.checked = false; all.disabled = false; }
+        if (!others.some(i => i.checked)) { all.checked = true; }
+    }
+    const checked = Array.from(wrap.querySelectorAll('input:checked'));
+    const label   = document.getElementById('deptLabel_' + wrapId.split('_')[1]);
+    if (!checked.length || (checked.length === 1 && checked[0].value === 'all')) {
+        label.textContent = 'All Departments';
+    } else {
+        label.textContent = checked.map(i => i.parentElement.textContent.trim()).join(', ');
+    }
+}
+</script>
 </body>
 </html>

@@ -35,12 +35,12 @@ $passed       = $result_row && $result_row['total_questions'] > 0 && ($result_ro
 // Step: 1=Watch, 2=Exam ready, 3=Done
 $current_step = $exam_done ? 3 : ($has_exam ? 2 : 1);
 
-$prev_stmt = $conn->prepare("SELECT id FROM modules WHERE id < ? AND (department = ? OR department = 'all') AND title NOT LIKE '%Gauge%' ORDER BY id DESC LIMIT 1");
+$prev_stmt = $conn->prepare("SELECT id FROM modules WHERE id < ? AND (FIND_IN_SET(?, department) OR department = 'all') AND title NOT LIKE '%Gauge%' ORDER BY id DESC LIMIT 1");
 $prev_stmt->bind_param("is", $id, $dept);
 $prev_stmt->execute();
 $prev_id = ($prev_stmt->get_result()->fetch_assoc())['id'] ?? null;
 
-$next_stmt = $conn->prepare("SELECT id FROM modules WHERE id > ? AND (department = ? OR department = 'all') AND title NOT LIKE '%Gauge%' ORDER BY id ASC LIMIT 1");
+$next_stmt = $conn->prepare("SELECT id FROM modules WHERE id > ? AND (FIND_IN_SET(?, department) OR department = 'all') AND title NOT LIKE '%Gauge%' ORDER BY id ASC LIMIT 1");
 $next_stmt->bind_param("is", $id, $dept);
 $next_stmt->execute();
 $next_id = ($next_stmt->get_result()->fetch_assoc())['id'] ?? null;
