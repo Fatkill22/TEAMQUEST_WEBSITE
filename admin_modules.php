@@ -60,6 +60,25 @@ if (isset($_GET['delete'])) {
 
 $modules = $conn->query("SELECT * FROM modules ORDER BY id DESC")->fetch_all(MYSQLI_ASSOC);
 
+// Display-only mapping for stored department codes → readable labels
+function deptDisplay(string $raw): string {
+    $map = ['STOR' => 'STORE', 'MARKETING' => 'MARKETING/SALES'];
+    return implode(', ', array_map(
+        fn($p) => $map[trim($p)] ?? trim($p),
+        explode(',', $raw)
+    ));
+}
+
+// Autocomplete data for search bars
+$ac_modules = $ac_gauge = $ac_users = $ac_mod_all = [];
+foreach ($modules as $_m) {
+    if (stripos($_m['title'], 'Gauge') !== false) $ac_gauge[]   = htmlspecialchars($_m['title']);
+    else                                           $ac_modules[] = htmlspecialchars($_m['title']);
+    $ac_mod_all[] = htmlspecialchars($_m['title']);
+}
+$_ur = $conn->query("SELECT DISTINCT username FROM users ORDER BY username");
+while ($_u = $_ur->fetch_assoc()) $ac_users[] = htmlspecialchars($_u['username']);
+
 // ── Admin stat queries ────────────────────────────────────
 $total_users_res  = $conn->query("SELECT COUNT(*) as cnt FROM users");
 $total_users      = $total_users_res ? (int)$total_users_res->fetch_assoc()['cnt'] : 0;
@@ -222,7 +241,7 @@ $avatar     = strtoupper(substr($admin_user, 0, 1));
                 <?php foreach ($modules as $m): $is_g = stripos($m['title'], 'Gauge') !== false; ?>
                 <tr>
                   <td style="font-weight:500;"><?= htmlspecialchars($m['title']) ?></td>
-                  <td><?= htmlspecialchars($m['department']) ?></td>
+                  <td><?= deptDisplay($m['department']) ?></td>
                   <td><span class="tq-badge <?= $is_g ? 'tq-badge-warning' : 'tq-badge-navy' ?>"><?= $is_g ? 'Gauge' : 'Module' ?></span></td>
                   <td>
                     <?php if (!$is_g): ?>
@@ -355,15 +374,25 @@ $avatar     = strtoupper(substr($admin_user, 0, 1));
 
         <!-- Normal Modules Table -->
         <div class="tq-section-header" style="font-size:15px;"><i class="bi bi-book-fill"></i>Normal Modules</div>
+        <div style="margin-bottom:12px; max-width:360px;">
+          <div style="position:relative;">
+            <i class="bi bi-search" style="position:absolute; left:14px; top:50%; transform:translateY(-50%); color:var(--tq-muted);"></i>
+            <input type="text" id="moduleSearchInput" class="tq-input" list="moduleTitleList"
+                   placeholder="Search modules…" style="padding-left:40px;" autocomplete="off">
+          </div>
+          <datalist id="moduleTitleList">
+            <?php foreach ($ac_modules as $t): ?><option value="<?= $t ?>"><?php endforeach; ?>
+          </datalist>
+        </div>
         <div class="tq-card">
           <div style="overflow-x:auto;">
             <table class="tq-table">
               <thead><tr><th>Title</th><th>Department</th><th style="text-align:center;">Actions</th></tr></thead>
-              <tbody>
+              <tbody id="moduleTableBody">
                 <?php foreach ($modules as $m): if (stripos($m['title'], 'Gauge') !== false) continue; ?>
                 <tr>
                   <td style="font-weight:500;"><?= htmlspecialchars($m['title']) ?></td>
-                  <td><?= htmlspecialchars($m['department']) ?></td>
+                  <td><?= deptDisplay($m['department']) ?></td>
                   <td style="text-align:center;">
                     <a href="edit_module.php?id=<?= $m['id'] ?>" class="btn-tq-outline" style="padding:6px 14px; font-size:12px;">
                       <i class="bi bi-pencil"></i> Edit
@@ -388,11 +417,21 @@ $avatar     = strtoupper(substr($admin_user, 0, 1));
       <!-- ═══════════ GAUGE ADMIN SECTION ═══════════ -->
       <section class="tq-section" id="section-gauge-admin">
         <div class="tq-section-header"><i class="bi bi-clipboard-data-fill"></i>Gauge Study Management</div>
+        <div style="margin-bottom:12px; max-width:360px;">
+          <div style="position:relative;">
+            <i class="bi bi-search" style="position:absolute; left:14px; top:50%; transform:translateY(-50%); color:var(--tq-muted);"></i>
+            <input type="text" id="gaugeSearchInput" class="tq-input" list="gaugeTitleList"
+                   placeholder="Search gauge studies…" style="padding-left:40px;" autocomplete="off">
+          </div>
+          <datalist id="gaugeTitleList">
+            <?php foreach ($ac_gauge as $t): ?><option value="<?= $t ?>"><?php endforeach; ?>
+          </datalist>
+        </div>
         <div class="tq-card">
           <div style="overflow-x:auto;">
             <table class="tq-table">
               <thead><tr><th>Study Title</th><th>Department</th><th style="text-align:center;">Actions</th></tr></thead>
-              <tbody>
+              <tbody id="gaugeTableBody">
                 <?php
                 $has_gauge = false;
                 foreach ($modules as $m): if (stripos($m['title'], 'Gauge') === false) continue;
@@ -400,7 +439,7 @@ $avatar     = strtoupper(substr($admin_user, 0, 1));
                 ?>
                 <tr>
                   <td style="font-weight:600; color:var(--tq-navy);"><?= htmlspecialchars($m['title']) ?></td>
-                  <td><?= htmlspecialchars($m['department']) ?></td>
+                  <td><?= deptDisplay($m['department']) ?></td>
                   <td style="text-align:center;">
                     <a href="view_gauge_report.php?id=<?= $m['id'] ?>" class="btn-tq-gold" style="padding:6px 14px; font-size:12px;">
                       <i class="bi bi-bar-chart-fill"></i> View Report
@@ -435,9 +474,14 @@ $avatar     = strtoupper(substr($admin_user, 0, 1));
         <div style="margin-bottom:16px; max-width:360px;">
           <div style="position:relative;">
             <i class="bi bi-search" style="position:absolute; left:14px; top:50%; transform:translateY(-50%); color:var(--tq-muted);"></i>
-            <input type="text" id="userSearchInput" class="tq-input" placeholder="Search by name or module…" style="padding-left:40px;">
+            <input type="text" id="userSearchInput" class="tq-input" list="userSearchList"
+                   placeholder="Search by name or module…" style="padding-left:40px;" autocomplete="off">
           </div>
         </div>
+        <datalist id="userSearchList">
+          <?php foreach ($ac_users as $u): ?><option value="<?= $u ?>"><?php endforeach; ?>
+          <?php foreach ($ac_mod_all as $t): ?><option value="<?= $t ?>"><?php endforeach; ?>
+        </datalist>
         <div class="tq-card" style="overflow:hidden;">
           <div style="overflow-x:auto;">
             <table class="tq-table">
@@ -482,6 +526,21 @@ $avatar     = strtoupper(substr($admin_user, 0, 1));
 
 <script src="assets/js/scripts.js"></script>
 <script>
+document.addEventListener('DOMContentLoaded', function () {
+    function tqTableSearch(inputId, tbodyId) {
+        const inp = document.getElementById(inputId);
+        if (!inp) return;
+        inp.addEventListener('input', function () {
+            const q = this.value.toLowerCase();
+            document.querySelectorAll('#' + tbodyId + ' tr').forEach(function (row) {
+                row.style.display = row.textContent.toLowerCase().includes(q) ? '' : 'none';
+            });
+        });
+    }
+    tqTableSearch('moduleSearchInput', 'moduleTableBody');
+    tqTableSearch('gaugeSearchInput',  'gaugeTableBody');
+});
+
 function tqDeptToggle(wrapId) {
     const wrap = document.getElementById(wrapId);
     const isOpen = wrap.classList.toggle('open');
