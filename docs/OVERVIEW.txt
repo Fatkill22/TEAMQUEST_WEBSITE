@@ -1,0 +1,164 @@
+================================================================
+  TEAMQUEST TECHNOLOGIES — ONLINE TRAINING PORTAL
+  Overview & User Guide
+================================================================
+
+----------------------------------------------------------------
+WHAT IS THIS SYSTEM?
+----------------------------------------------------------------
+The TeamQuest Training Portal is an internal web-based training
+platform built for TeamQuest Technologies employees. It lets the
+company assign learning modules and exams to specific departments,
+track employee progress, and run Gauge R&R (Attribute GRR) studies
+for quality/measurement system analysis.
+
+Built on: PHP, MySQL, HTML/CSS/JavaScript (LAMP stack via XAMPP)
+
+----------------------------------------------------------------
+USER ROLES
+----------------------------------------------------------------
+1. EMPLOYEE  — Takes modules, exams, and gauge studies; views
+               their own scores and results.
+
+2. ADMIN     — Manages all modules, monitors every employee's
+               progress, runs gauge studies, and exports reports.
+
+----------------------------------------------------------------
+HOW TO ACCESS
+----------------------------------------------------------------
+URL  :  http://localhost/WEBSITE/  (or the server's IP address)
+Login:  INDEX.php — enter your username and password.
+       The system redirects you to the correct dashboard
+       based on your role (Employee or Admin).
+
+New accounts are created via REGISTER.html by an administrator.
+
+----------------------------------------------------------------
+EMPLOYEE PORTAL  (EMPLOYEE.php)
+----------------------------------------------------------------
+TAB: Home
+  - Welcome banner with the employee's name.
+  - "Continue where you left off" shortcut to the next
+    incomplete module.
+  - Visual progress bar showing completion across all modules.
+  - Recent activity table (last 3 exam results).
+
+TAB: Modules
+  - Lists all training modules assigned to the employee's
+    department (plus "All Departments" modules).
+  - Each card shows the module title, description, and a
+    Start/Continue/Completed button.
+  - Clicking a module opens view_module.php where the employee
+    reads the content, watches any attached video, and then
+    proceeds to the exam.
+
+TAB: Gauge Study
+  - Lists Gauge R&R study modules assigned to the employee.
+  - Each study allows up to 3 attempts (trials).
+  - The employee rates 50 parts per trial (entering 0 or 1
+    for each part).
+  - After each attempt, view_gauge_mistakes.php shows which
+    parts were answered differently from the reference key.
+
+TAB: Results
+  - Full history of all exam scores across all modules.
+  - Shows score, total questions, and date for each attempt.
+
+----------------------------------------------------------------
+ADMIN PORTAL  (admin_modules.php)
+----------------------------------------------------------------
+TAB: Home (Dashboard)
+  - Summary counts: total modules, gauge studies, employees.
+  - Quick Actions: shortcut buttons to create a module or
+    a gauge study.
+  - Full module list with delete controls.
+
+TAB: Manage Modules
+  - Create a new training module:
+      Title, Description, Department, Content (rich text),
+      optional Image, optional Video.
+  - Department options match the registration page:
+      ACCOUNTING, ASEPH BURN-IN, CML BURN-IN, ENGINEERING,
+      HR/ADMIN, LOGISTICS, MACHINING, MARKETING/SALES, MIS,
+      PLANNING, PRODUCTION, PURCHASING, QA, QA/TRAINING,
+      STORE, WAREHOUSE, or ALL DEPARTMENTS.
+  - Edit existing modules (edit_module.php).
+  - Delete modules (also removes all associated exam results).
+  - Manage exam questions per module (manage_exam.php /
+    edit_question.php): add, edit, or delete multiple-choice
+    questions and set correct answers.
+
+TAB: Gauge Study Management
+  - Create a new Gauge R&R (Attribute GRR) study module.
+  - Set the 50-part answer key (0 or 1 per part) via
+    gauge_control.php.
+  - View a full report for each study (view_gauge_report.php):
+      - See which employees completed all 3 trials.
+      - Assign 3 employees as Appraiser A, B, and C.
+      - Export an Excel report (GRR_<title>_<date>.xlsx) that
+        fills the "N PROD 1" tab of the ATTRIBUTE GR R template
+        with each appraiser's 3 trial answers, colour-coded:
+          GREEN = trial answer matches the reference key
+          RED   = trial answer does not match
+        Agreement and effectiveness formulas in the template
+        calculate automatically when the file is opened.
+
+TAB: Employee Progress
+  - Table of all registered employees.
+  - Shows each employee's exam scores per module.
+  - Reset button: clears an employee's attempts for a specific
+    module so they can retake it (also clears gauge trial data).
+
+----------------------------------------------------------------
+GAUGE EXCEL EXPORT — QUICK REFERENCE
+----------------------------------------------------------------
+1. Go to Admin → Gauge Study Management → View Report.
+2. Check the boxes next to 3 employees who each completed
+   3 trials. Assign them as Appraiser A, B, or C.
+3. Click "Export Excel".
+4. The downloaded .xlsx file opens in Excel (2007 or later).
+5. The "N PROD 1" tab is pre-filled:
+     - Column B  : Reference / Answer Key (highlighted yellow)
+     - Columns C–E : Appraiser A, Trials 1–3
+     - Columns F–H : Appraiser B, Trials 1–3
+     - Columns I–K : Appraiser C, Trials 1–3
+     - Appraiser names written in cells K8, K9, K10.
+6. Agreement and effectiveness report rows calculate on open.
+
+NOTE: The server must have the PHP "zip" extension enabled.
+If you see a ZipArchive error, open php.ini, find the line
+";extension=zip", remove the semicolon, and restart Apache.
+
+----------------------------------------------------------------
+DATABASE TABLES (key tables)
+----------------------------------------------------------------
+users               — Employee accounts and department info
+modules             — All training and gauge study modules
+exam_results        — Scores per employee per module
+wrong_questions     — Per-attempt wrong answer log
+gauge_answers       — Admin-set answer key per gauge module (50 parts)
+gauge_attempt_details — Full 50-answer JSON per employee per trial
+
+----------------------------------------------------------------
+FILE STRUCTURE (key files)
+----------------------------------------------------------------
+INDEX.php/html          Login page
+REGISTER.php/html       New employee registration
+EMPLOYEE.php            Employee dashboard
+admin_modules.php       Admin dashboard
+view_module.php         Module reading + exam entry point
+take_exam.php           Multiple-choice exam
+view_mistakes.php       Post-exam wrong answers review
+gauge_study.php         Gauge study landing/info page
+take_gauge_exam.php     50-part gauge trial form
+view_gauge_mistakes.php Post-trial results for gauge
+view_gauge_report.php   Admin gauge report + export UI
+export_gauge_excel.php  Generates and downloads the .xlsx report
+gauge_control.php       Admin: set gauge answer key
+manage_exam.php         Admin: manage exam questions
+edit_module.php         Admin: edit a module
+edit_question.php       Admin: edit a single question
+config.php              Database connection settings
+ATTRIBUTE GR  R.xlsx    Excel template for GRR export
+
+================================================================
