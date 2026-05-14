@@ -47,7 +47,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $upd->execute();
     $upd->close();
 
-    header("Location: admin_modules.php?tab=admin&saved=1");
+    $back_tab = stripos($title, 'Gauge') !== false ? 'gauge-admin' : 'admin';
+    header("Location: admin_modules.php?tab={$back_tab}&saved=1");
     ob_end_flush();
     exit();
 }

@@ -447,6 +447,9 @@ $avatar     = strtoupper(substr($admin_user, 0, 1));
                     <a href="gauge_control.php?id=<?= $m['id'] ?>" class="btn-tq-outline" style="padding:6px 14px; font-size:12px;">
                       <i class="bi bi-key-fill"></i> Answer Key
                     </a>
+                    <a href="edit_module.php?id=<?= $m['id'] ?>" class="btn-tq-primary" style="padding:6px 14px; font-size:12px;">
+                      <i class="bi bi-pencil"></i> Edit
+                    </a>
                     <a href="?delete=<?= $m['id'] ?>&tab=gauge-admin" class="btn-tq-danger" style="padding:6px 10px; font-size:12px;"
                        onclick="return confirm('Delete this gauge study?')" title="Delete">
                       <i class="bi bi-trash"></i>
