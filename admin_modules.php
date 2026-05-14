@@ -152,7 +152,7 @@ $avatar     = strtoupper(substr($admin_user, 0, 1));
         </li>
         <li class="tq-nav-item">
           <a href="?tab=gauge-admin" class="tq-nav-link" data-section="gauge-admin">
-            <i class="bi bi-clipboard-data-fill"></i><span>Gauge Study</span>
+            <i class="bi bi-clipboard-data-fill"></i><span>Attribute Gauge R&R Study</span>
           </a>
         </li>
         <li class="tq-nav-item">
@@ -218,7 +218,7 @@ $avatar     = strtoupper(substr($admin_user, 0, 1));
           <a href="#" data-goto-section="gauge-admin" class="tq-quick-action">
             <i class="bi bi-clipboard-data-fill"></i>
             <div>
-              <div style="font-size:15px;">Gauge Study</div>
+              <div style="font-size:13px; font-weight:700; line-height:1.3;">ATTRIBUTE GAUGE REPEATABILITY AND REPRODUCIBILITY STUDY</div>
               <div style="font-size:12px; opacity:.8; font-weight:400;">Manage gauge exams &amp; keys</div>
             </div>
           </a>

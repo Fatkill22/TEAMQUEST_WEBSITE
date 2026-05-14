@@ -398,7 +398,6 @@ $avatar = strtoupper(substr($user, 0, 1));
             <div class="tq-card-body" style="display:flex; justify-content:space-between; align-items:center; gap:16px;">
               <div>
                 <div style="font-size:15px; font-weight:600; color:var(--tq-navy);"><?= htmlspecialchars($module['title']) ?></div>
-                <div style="font-size:12px; color:var(--tq-muted); margin-top:4px;">Ref: AD-0001-F4-Rev 2</div>
                 <span class="tq-badge <?= $is_locked ? 'tq-badge-danger' : 'tq-badge-navy' ?>" style="margin-top:8px; display:inline-block;">
                   <i class="bi bi-arrow-repeat me-1"></i>Attempts: <?= $attempts ?> / 3
                 </span>
