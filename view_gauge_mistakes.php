@@ -58,7 +58,7 @@ $wrong_count = count($mistakes);
       <ul class="tq-nav">
         <li class="tq-nav-item"><a href="EMPLOYEE.php?tab=home" class="tq-nav-link"><i class="bi bi-house-fill"></i><span>Home</span></a></li>
         <li class="tq-nav-item"><a href="EMPLOYEE.php?tab=modules" class="tq-nav-link"><i class="bi bi-book-fill"></i><span>My Modules</span></a></li>
-        <li class="tq-nav-item active"><a href="EMPLOYEE.php?tab=gauge" class="tq-nav-link"><i class="bi bi-clipboard-check-fill"></i><span>Gauge Exams</span></a></li>
+        <li class="tq-nav-item active"><a href="EMPLOYEE.php?tab=gauge" class="tq-nav-link"><i class="bi bi-clipboard-check-fill"></i><span>Attribute Gauge R&amp;R Study</span></a></li>
         <li class="tq-nav-item"><a href="EMPLOYEE.php?tab=results" class="tq-nav-link"><i class="bi bi-bar-chart-fill"></i><span>My Results</span></a></li>
       </ul>
       <div class="tq-sidebar-footer"><a href="LOGOUT.php" class="tq-logout"><i class="bi bi-box-arrow-right"></i> Logout</a></div>
@@ -125,7 +125,7 @@ $wrong_count = count($mistakes);
             <i class="bi bi-arrow-left"></i> Back to Results
           </a>
           <a href="EMPLOYEE.php?tab=gauge" class="btn-tq-primary" style="flex:1; justify-content:center; padding:12px;">
-            <i class="bi bi-clipboard-check"></i> Gauge Exams
+            <i class="bi bi-clipboard-check"></i> Attribute Gauge R&amp;R Study
           </a>
         </div>
 

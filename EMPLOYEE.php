@@ -116,7 +116,7 @@ $avatar = strtoupper(substr($user, 0, 1));
         </li>
         <li class="tq-nav-item" id="nav-gauge">
           <a href="?tab=gauge" class="tq-nav-link" data-section="gauge">
-            <i class="bi bi-clipboard-check-fill"></i><span>Gauge Exams</span>
+            <i class="bi bi-clipboard-check-fill"></i><span>Attribute Gauge R&amp;R Study</span>
           </a>
         </li>
         <li class="tq-nav-item" id="nav-results">
