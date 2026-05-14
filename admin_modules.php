@@ -416,7 +416,7 @@ $avatar     = strtoupper(substr($admin_user, 0, 1));
 
       <!-- ═══════════ GAUGE ADMIN SECTION ═══════════ -->
       <section class="tq-section" id="section-gauge-admin">
-        <div class="tq-section-header"><i class="bi bi-clipboard-data-fill"></i>Gauge Study Management</div>
+        <div class="tq-section-header"><i class="bi bi-clipboard-data-fill"></i>AR&amp;R Study</div>
         <div style="margin-bottom:12px; max-width:360px;">
           <div style="position:relative;">
             <i class="bi bi-search" style="position:absolute; left:14px; top:50%; transform:translateY(-50%); color:var(--tq-muted);"></i>
