@@ -16,7 +16,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $password = $empnumber;
 
     // Role logic
-    if ($department == "HR/ADMIN") {
+    if ($department == "ADMIN") {
         $roles = "admin";
     } else {
         $roles = "employee";
