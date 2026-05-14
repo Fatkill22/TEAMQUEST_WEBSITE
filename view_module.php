@@ -36,13 +36,15 @@ $passed       = $result_row && $result_row['total_questions'] > 0 && ($result_ro
 $no_exam_done  = (!$has_exam && $exam_done);
 $current_step  = $exam_done ? 3 : ($has_exam ? 2 : 1);
 
-$prev_stmt = $conn->prepare("SELECT id FROM modules WHERE id < ? AND (FIND_IN_SET(?, department) OR department = 'all') AND title NOT LIKE '%Gauge%' ORDER BY id DESC LIMIT 1");
-$prev_stmt->bind_param("is", $id, $dept);
+$dept_compat = ($dept === 'ADMIN') ? 'HR/ADMIN' : (($dept === 'HR/ADMIN') ? 'ADMIN' : '');
+
+$prev_stmt = $conn->prepare("SELECT id FROM modules WHERE id < ? AND (FIND_IN_SET(?, department) OR (? != '' AND FIND_IN_SET(?, department)) OR department = 'all') AND title NOT LIKE '%Gauge%' ORDER BY id DESC LIMIT 1");
+$prev_stmt->bind_param("isss", $id, $dept, $dept_compat, $dept_compat);
 $prev_stmt->execute();
 $prev_id = ($prev_stmt->get_result()->fetch_assoc())['id'] ?? null;
 
-$next_stmt = $conn->prepare("SELECT id FROM modules WHERE id > ? AND (FIND_IN_SET(?, department) OR department = 'all') AND title NOT LIKE '%Gauge%' ORDER BY id ASC LIMIT 1");
-$next_stmt->bind_param("is", $id, $dept);
+$next_stmt = $conn->prepare("SELECT id FROM modules WHERE id > ? AND (FIND_IN_SET(?, department) OR (? != '' AND FIND_IN_SET(?, department)) OR department = 'all') AND title NOT LIKE '%Gauge%' ORDER BY id ASC LIMIT 1");
+$next_stmt->bind_param("isss", $id, $dept, $dept_compat, $dept_compat);
 $next_stmt->execute();
 $next_id = ($next_stmt->get_result()->fetch_assoc())['id'] ?? null;
 

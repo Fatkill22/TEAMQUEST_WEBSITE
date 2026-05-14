@@ -62,7 +62,7 @@ $modules = $conn->query("SELECT * FROM modules ORDER BY id DESC")->fetch_all(MYS
 
 // Display-only mapping for stored department codes → readable labels
 function deptDisplay(string $raw): string {
-    $map = ['STOR' => 'STORE', 'MARKETING' => 'MARKETING/SALES'];
+    $map = ['STOR' => 'STORE', 'MARKETING' => 'MARKETING/SALES', 'HR/ADMIN' => 'ADMIN'];
     return implode(', ', array_map(
         fn($p) => $map[trim($p)] ?? trim($p),
         explode(',', $raw)

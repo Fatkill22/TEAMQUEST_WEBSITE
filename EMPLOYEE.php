@@ -15,8 +15,9 @@ $dept = $_SESSION['department'];
 $user = $_SESSION['username'];
 
 $modules = [];
-$stmt = $conn->prepare("SELECT * FROM modules WHERE FIND_IN_SET(?, department) OR department = 'all' ORDER BY id DESC");
-$stmt->bind_param("s", $dept);
+$dept_compat = ($dept === 'ADMIN') ? 'HR/ADMIN' : (($dept === 'HR/ADMIN') ? 'ADMIN' : '');
+$stmt = $conn->prepare("SELECT * FROM modules WHERE FIND_IN_SET(?, department) OR (? != '' AND FIND_IN_SET(?, department)) OR department = 'all' ORDER BY id DESC");
+$stmt->bind_param("sss", $dept, $dept_compat, $dept_compat);
 $stmt->execute();
 $result = $stmt->get_result();
 while ($row = $result->fetch_assoc()) { $modules[] = $row; }
