@@ -50,7 +50,6 @@ $avatar    = strtoupper(substr($username, 0, 1));
             <div><span style="color:var(--tq-muted);">Appraiser:</span> <strong><?= htmlspecialchars($username) ?></strong></div>
             <div><span style="color:var(--tq-muted);">Date:</span> <strong><?= date('Y-m-d') ?></strong></div>
             <div><span style="color:var(--tq-muted);">Process:</span> <strong><?= htmlspecialchars($mod_data['title']) ?></strong></div>
-            <div><span style="color:var(--tq-muted);">Reference:</span> <strong>AD-0001-F4-Rev 2</strong></div>
           </div>
         </div>
 
@@ -95,7 +94,6 @@ $avatar    = strtoupper(substr($username, 0, 1));
             <button type="submit" class="btn-tq-gold" style="width:100%; justify-content:center; height:50px; font-size:15px;">
               <i class="bi bi-send-check"></i> Submit Exam
             </button>
-            <div style="text-align:center; margin-top:8px; font-size:11px; color:var(--tq-muted);">AD-0001-F4-Rev 2</div>
           </div>
         </form>
 
