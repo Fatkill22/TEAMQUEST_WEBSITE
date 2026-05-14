@@ -55,7 +55,7 @@ if (isset($_POST['submit_exam'])) {
     $wrong_ids_str = implode(',', $wrong_ids);
 
     if ($attempt_data) {
-        $stmt = $conn->prepare("UPDATE exam_results SET score=?, attempts=attempts+1, wrong_questions=? WHERE username=? AND module_id=?");
+        $stmt = $conn->prepare("UPDATE exam_results SET score=GREATEST(score,?), attempts=attempts+1, wrong_questions=? WHERE username=? AND module_id=?");
         $stmt->bind_param("issi", $score, $wrong_ids_str, $username, $module_id);
     } else {
         $stmt = $conn->prepare("INSERT INTO exam_results (username,module_id,score,total_questions,attempts,wrong_questions) VALUES (?,?,?,?,1,?)");

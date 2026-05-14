@@ -184,17 +184,16 @@ $avatar = strtoupper(substr($user, 0, 1));
                   </button>
                 </form>
                 <?php endif; ?>
-              <?php elseif ($passed): ?>
-              <span class="tq-badge tq-badge-success" style="padding:10px 20px; font-size:13px;">
-                <i class="bi bi-patch-check-fill me-1"></i> Exam Passed
-              </span>
-              <div style="margin-top:10px; font-size:12px; color:var(--tq-muted);">
-                Score: <?= $result_row['score'] ?> / <?= $result_row['total_questions'] ?>
-              </div>
               <?php elseif ($attempts >= 3): ?>
               <span class="tq-badge tq-badge-danger" style="padding:10px 20px; font-size:13px;">
                 <i class="bi bi-lock-fill me-1"></i> Max Attempts Reached
               </span>
+              <div style="margin-top:10px; font-size:13px; color:var(--tq-text); font-weight:600;">
+                Best score: <?= $result_row['score'] ?> / <?= $result_row['total_questions'] ?>
+                <span style="color:<?= $passed ? 'var(--tq-success)' : 'var(--tq-danger)' ?>; margin-left:6px;">
+                  (<?= $passed ? 'Passed' : 'Failed' ?>)
+                </span>
+              </div>
               <?php else: ?>
               <a href="take_exam.php?module_id=<?= $id ?>" class="btn-tq-gold" style="padding:12px 32px; font-size:15px;">
                 <i class="bi bi-pencil-square"></i>
@@ -202,8 +201,8 @@ $avatar = strtoupper(substr($user, 0, 1));
               </a>
               <?php if ($exam_done): ?>
               <div style="margin-top:10px; font-size:12px; color:var(--tq-muted);">
-                Last attempt: <?= $result_row['score'] ?> / <?= $result_row['total_questions'] ?> —
-                <span style="color:var(--tq-danger); font-weight:600;">Failed</span>
+                Best score so far: <?= $result_row['score'] ?> / <?= $result_row['total_questions'] ?> —
+                <span style="color:<?= $passed ? 'var(--tq-success)' : 'var(--tq-danger)' ?>; font-weight:600;"><?= $passed ? 'Passed' : 'Failed' ?></span>
               </div>
               <?php endif; ?>
               <?php endif; ?>
