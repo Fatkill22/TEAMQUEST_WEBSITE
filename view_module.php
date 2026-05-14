@@ -32,8 +32,9 @@ $exam_done    = $result_row !== null;
 $attempts     = $result_row ? (int)$result_row['attempts'] : 0;
 $passed       = $result_row && $result_row['total_questions'] > 0 && ($result_row['score'] / $result_row['total_questions']) >= 0.7;
 
-// Step: 1=Watch, 2=Exam ready, 3=Done
-$current_step = $exam_done ? 3 : ($has_exam ? 2 : 1);
+// Step: 1=Watch, 2=Exam ready/Finish, 3=Done
+$no_exam_done  = (!$has_exam && $exam_done);
+$current_step  = $exam_done ? 3 : ($has_exam ? 2 : 1);
 
 $prev_stmt = $conn->prepare("SELECT id FROM modules WHERE id < ? AND (FIND_IN_SET(?, department) OR department = 'all') AND title NOT LIKE '%Gauge%' ORDER BY id DESC LIMIT 1");
 $prev_stmt->bind_param("is", $id, $dept);
@@ -169,33 +170,60 @@ $avatar = strtoupper(substr($user, 0, 1));
             </div>
 
             <div style="text-align:center;">
-              <?php if ($attempts >= 3): ?>
+              <?php if (!$has_exam): ?>
+                <?php if ($no_exam_done): ?>
+                <span class="tq-badge tq-badge-success" style="padding:10px 20px; font-size:13px;">
+                  <i class="bi bi-check-circle-fill me-1"></i> Module Completed
+                </span>
+                <?php else: ?>
+                <form method="POST" action="process_finish_module.php" style="display:inline;">
+                  <input type="hidden" name="module_id" value="<?= $id ?>">
+                  <?php if ($next_id): ?><input type="hidden" name="next_id" value="<?= $next_id ?>"><?php endif; ?>
+                  <button type="submit" class="btn-tq-gold" style="padding:12px 32px; font-size:15px;">
+                    <i class="bi bi-check-circle"></i> Finish Module
+                  </button>
+                </form>
+                <?php endif; ?>
+              <?php elseif ($passed): ?>
+              <span class="tq-badge tq-badge-success" style="padding:10px 20px; font-size:13px;">
+                <i class="bi bi-patch-check-fill me-1"></i> Exam Passed
+              </span>
+              <div style="margin-top:10px; font-size:12px; color:var(--tq-muted);">
+                Score: <?= $result_row['score'] ?> / <?= $result_row['total_questions'] ?>
+              </div>
+              <?php elseif ($attempts >= 3): ?>
               <span class="tq-badge tq-badge-danger" style="padding:10px 20px; font-size:13px;">
                 <i class="bi bi-lock-fill me-1"></i> Max Attempts Reached
               </span>
-              <?php elseif ($has_exam): ?>
+              <?php else: ?>
               <a href="take_exam.php?module_id=<?= $id ?>" class="btn-tq-gold" style="padding:12px 32px; font-size:15px;">
                 <i class="bi bi-pencil-square"></i>
                 <?= $exam_done ? 'Retake Exam' : 'Take Exam' ?>
               </a>
-              <?php else: ?>
-              <button class="btn-tq-gold" style="padding:12px 32px; font-size:15px;" onclick="alert('Module Completed!')">
-                <i class="bi bi-check-circle"></i> Finish Module
-              </button>
-              <?php endif; ?>
               <?php if ($exam_done): ?>
               <div style="margin-top:10px; font-size:12px; color:var(--tq-muted);">
                 Last attempt: <?= $result_row['score'] ?> / <?= $result_row['total_questions'] ?> —
-                <span style="color:<?= $passed ? 'var(--tq-success)' : 'var(--tq-danger)' ?>; font-weight:600;"><?= $passed ? 'Passed' : 'Failed' ?></span>
+                <span style="color:var(--tq-danger); font-weight:600;">Failed</span>
               </div>
+              <?php endif; ?>
               <?php endif; ?>
             </div>
 
             <div>
               <?php if ($next_id): ?>
-              <a href="view_module.php?id=<?= $next_id ?>" class="btn-tq-outline">
-                Next <i class="bi bi-arrow-right"></i>
-              </a>
+                <?php if (!$has_exam && !$no_exam_done): ?>
+                <form method="POST" action="process_finish_module.php" style="display:inline;">
+                  <input type="hidden" name="module_id" value="<?= $id ?>">
+                  <input type="hidden" name="next_id" value="<?= $next_id ?>">
+                  <button type="submit" class="btn-tq-outline">
+                    Next <i class="bi bi-arrow-right"></i>
+                  </button>
+                </form>
+                <?php else: ?>
+                <a href="view_module.php?id=<?= $next_id ?>" class="btn-tq-outline">
+                  Next <i class="bi bi-arrow-right"></i>
+                </a>
+                <?php endif; ?>
               <?php endif; ?>
             </div>
           </div>

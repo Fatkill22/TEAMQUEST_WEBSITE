@@ -496,8 +496,12 @@ $avatar     = strtoupper(substr($admin_user, 0, 1));
                   <td style="font-weight:600;"><?= htmlspecialchars($row['username']) ?></td>
                   <td><?= htmlspecialchars($row['title']) ?></td>
                   <td>
+                    <?php if ($row['total_questions'] == 0): ?>
+                    <span class="tq-badge tq-badge-success">Completed</span>
+                    <?php else: ?>
                     <?= $row['score'] ?> / <?= $row['total_questions'] ?>
                     <span class="tq-badge <?= $apct >= 70 ? 'tq-badge-success' : 'tq-badge-danger' ?>" style="margin-left:6px;"><?= $apct ?>%</span>
+                    <?php endif; ?>
                   </td>
                   <td>
                     <span class="tq-badge <?= $row['attempts'] >= 3 ? 'tq-badge-danger' : 'tq-badge-navy' ?>">

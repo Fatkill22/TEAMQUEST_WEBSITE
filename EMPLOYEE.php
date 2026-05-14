@@ -28,18 +28,26 @@ $non_gauge_modules = array_values(array_filter($modules, function($m) {
 }));
 $total_normal = count($non_gauge_modules);
 
-$completed   = 0;
-$total_score = 0;
-$score_count = 0;
+$completed     = 0;
+$total_score   = 0;
+$score_count   = 0;
+$completed_ids = [];
 
 foreach ($non_gauge_modules as $m) {
     $mid = (int)$m['id'];
     $r   = $conn->query("SELECT score, total_questions FROM exam_results WHERE username = '$user' AND module_id = $mid");
     if ($r && $prow = $r->fetch_assoc()) {
-        if ($prow['total_questions'] > 0 && ($prow['score'] / $prow['total_questions']) >= 0.7) {
+        if ($prow['total_questions'] == 0) {
+            // No-exam module completion
             $completed++;
-        }
-        if ($prow['total_questions'] > 0) {
+            $completed_ids[] = $mid;
+        } elseif (($prow['score'] / $prow['total_questions']) >= 0.7) {
+            // Passed exam
+            $completed++;
+            $completed_ids[] = $mid;
+            $total_score += ($prow['score'] / $prow['total_questions']) * 100;
+            $score_count++;
+        } else {
             $total_score += ($prow['score'] / $prow['total_questions']) * 100;
             $score_count++;
         }
@@ -55,23 +63,10 @@ foreach ($modules as $m) {
     if ($r && $r->num_rows > 0) $gauge_taken++;
 }
 
-// "Continue where you left off"
+// "Continue where you left off" — first non-completed module
 $continue_module = null;
 foreach ($non_gauge_modules as $m) {
-    $mid = (int)$m['id'];
-    $r   = $conn->query("SELECT id FROM exam_results WHERE username = '$user' AND module_id = $mid");
-    if (!$r || $r->num_rows === 0) { $continue_module = $m; break; }
-}
-if (!$continue_module) {
-    foreach ($non_gauge_modules as $m) {
-        $mid = (int)$m['id'];
-        $r   = $conn->query("SELECT score, total_questions, attempts FROM exam_results WHERE username = '$user' AND module_id = $mid");
-        if ($r && $prow = $r->fetch_assoc()) {
-            if ($prow['total_questions'] > 0 && ($prow['score'] / $prow['total_questions']) < 0.7 && $prow['attempts'] < 3) {
-                $continue_module = $m; break;
-            }
-        }
-    }
+    if (!in_array((int)$m['id'], $completed_ids)) { $continue_module = $m; break; }
 }
 $avatar = strtoupper(substr($user, 0, 1));
 ?>
@@ -83,6 +78,12 @@ $avatar = strtoupper(substr($user, 0, 1));
   <title>Online Training — TeamQuest</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.min.css">
   <link rel="stylesheet" href="assets/css/styles.css">
+  <style>
+    .tq-mtab{display:inline-flex;align-items:center;gap:8px;padding:10px 22px;border-radius:24px;border:2px solid var(--tq-navy,#1a2e4a);background:#fff;color:var(--tq-navy,#1a2e4a);font-weight:600;font-size:13px;cursor:pointer;transition:background .18s,color .18s;}
+    .tq-mtab.active{background:var(--tq-navy,#1a2e4a);color:#fff;}
+    .tq-mtab-count{background:var(--tq-navy,#1a2e4a);color:#fff;border-radius:10px;padding:1px 8px;font-size:11px;font-weight:700;min-width:20px;text-align:center;}
+    .tq-mtab.active .tq-mtab-count{background:rgba(255,255,255,0.25);}
+  </style>
 </head>
 <body>
 <div class="tq-shell">
@@ -207,10 +208,14 @@ $avatar = strtoupper(substr($user, 0, 1));
               $pr   = $conn->query("SELECT score, total_questions FROM exam_results WHERE username = '$user' AND module_id = $mid");
               $prow = ($pr && $pr->num_rows > 0) ? $pr->fetch_assoc() : null;
               $pct  = 0; $pstatus = 'Not Started'; $pclass = 'empty'; $pcolor = 'var(--tq-muted)';
-              if ($prow && $prow['total_questions'] > 0) {
-                  $pct = round(($prow['score'] / $prow['total_questions']) * 100);
-                  if ($pct >= 70) { $pstatus = 'Passed';  $pclass = 'passed'; $pcolor = 'var(--tq-success)'; }
-                  else            { $pstatus = 'Failed';  $pclass = 'failed'; $pcolor = 'var(--tq-danger)'; }
+              if ($prow) {
+                  if ($prow['total_questions'] == 0) {
+                      $pct = 100; $pstatus = 'Completed'; $pclass = 'passed'; $pcolor = 'var(--tq-success)';
+                  } elseif ($prow['total_questions'] > 0) {
+                      $pct = round(($prow['score'] / $prow['total_questions']) * 100);
+                      if ($pct >= 70) { $pstatus = 'Passed'; $pclass = 'passed'; $pcolor = 'var(--tq-success)'; }
+                      else            { $pstatus = 'Failed'; $pclass = 'failed'; $pcolor = 'var(--tq-danger)'; }
+                  }
               }
             ?>
             <div class="tq-progress-row">
@@ -236,7 +241,7 @@ $avatar = strtoupper(substr($user, 0, 1));
               <thead><tr><th>Module</th><th>Score</th><th>Status</th><th>Type</th></tr></thead>
               <tbody>
                 <?php
-                $recent   = $conn->query("SELECT r.*, m.title FROM exam_results r JOIN modules m ON r.module_id = m.id WHERE r.username = '$user' ORDER BY r.id DESC LIMIT 3");
+                $recent   = $conn->query("SELECT r.*, m.title FROM exam_results r JOIN modules m ON r.module_id = m.id WHERE r.username = '$user' AND r.total_questions > 0 ORDER BY r.id DESC LIMIT 3");
                 $has_rec  = false;
                 while ($rr = $recent->fetch_assoc()):
                   $has_rec = true;
@@ -274,66 +279,104 @@ $avatar = strtoupper(substr($user, 0, 1));
           <div class="tq-empty-text">No modules assigned yet</div>
           <div class="tq-empty-sub">Check back soon!</div>
         </div>
-        <?php else: ?>
-        <div class="tq-module-grid">
-          <?php foreach ($modules as $module):
-            if (stripos($module['title'], 'Gauge') !== false) continue;
-            $mod_id   = (int)$module['id'];
-            $chk_att  = $conn->query("SELECT attempts, score, total_questions FROM exam_results WHERE username = '$user' AND module_id = $mod_id");
-            $att_row  = ($chk_att && $chk_att->num_rows > 0) ? $chk_att->fetch_assoc() : null;
-            $attempts = $att_row ? (int)$att_row['attempts'] : 0;
-            $is_locked = ($attempts >= 3);
+        <?php else:
+          $enrolled_modules = array_values(array_filter($non_gauge_modules, fn($m) => !in_array((int)$m['id'], $completed_ids)));
+          $done_modules     = array_values(array_filter($non_gauge_modules, fn($m) =>  in_array((int)$m['id'], $completed_ids)));
+        ?>
 
-            $status = 'Not Started'; $status_class = 'tq-badge-gray';
-            if ($is_locked) {
-                $status = 'Locked'; $status_class = 'tq-badge-danger';
-            } elseif ($att_row && $att_row['total_questions'] > 0) {
-                $spct = ($att_row['score'] / $att_row['total_questions']) * 100;
-                $status = $spct >= 70 ? 'Passed' : 'Retake';
-                $status_class = $spct >= 70 ? 'tq-badge-success' : 'tq-badge-warning';
-            }
-
-            // Step: 1=Watch, 2=Take Exam, 3=Done
-            $step = $att_row ? 3 : 1;
-          ?>
-          <div class="tq-module-card <?= $is_locked ? 'locked' : '' ?>"
-               <?= $is_locked ? '' : "onclick=\"location.href='view_module.php?id={$module['id']}'\"" ?>>
-            <div style="position:relative; overflow:hidden;">
-              <img src="Images/<?= htmlspecialchars($module['image'] ?: 'Module1.jpg') ?>"
-                   class="tq-module-img"
-                   style="<?= $is_locked ? 'filter:grayscale(1)' : '' ?>">
-              <?php if ($is_locked): ?>
-              <div style="position:absolute;inset:0;background:rgba(0,0,0,0.35);display:flex;align-items:center;justify-content:center;">
-                <i class="bi bi-lock-fill" style="font-size:36px;color:#fff;"></i>
-              </div>
-              <?php endif; ?>
-            </div>
-            <div class="tq-module-body">
-              <div class="tq-module-title"><?= htmlspecialchars($module['title']) ?></div>
-              <div class="tq-module-desc"><?= htmlspecialchars($module['description']) ?></div>
-              <div class="tq-module-footer">
-                <span class="tq-badge tq-badge-navy"><i class="bi bi-arrow-repeat me-1"></i><?= $attempts ?> / 3</span>
-                <span class="tq-badge <?= $status_class ?>"><?= $status ?></span>
-              </div>
-            </div>
-            <?php if (!$is_locked): ?>
-            <div class="tq-steps">
-              <div class="tq-step <?= $step >= 1 ? 'active' : '' ?>">
-                <span class="tq-step-num">1</span> Watch Video
-              </div>
-              <span class="tq-step-arrow">›</span>
-              <div class="tq-step <?= $step >= 2 ? 'active' : '' ?>">
-                <span class="tq-step-num">2</span> Take Exam
-              </div>
-              <span class="tq-step-arrow">›</span>
-              <div class="tq-step <?= $step >= 3 ? 'done' : '' ?>">
-                <span class="tq-step-num">3</span> View Results
-              </div>
-            </div>
-            <?php endif; ?>
-          </div>
-          <?php endforeach; ?>
+        <!-- Tab bar -->
+        <div style="display:flex;gap:10px;margin-bottom:22px;flex-wrap:wrap;">
+          <button class="tq-mtab active" onclick="switchModuleTab(this,'tab-enrolled')">
+            <i class="bi bi-book"></i> Enrolled
+            <span class="tq-mtab-count"><?= count($enrolled_modules) ?></span>
+          </button>
+          <button class="tq-mtab" onclick="switchModuleTab(this,'tab-completed')">
+            <i class="bi bi-check-circle-fill"></i> Completed
+            <span class="tq-mtab-count"><?= count($done_modules) ?></span>
+          </button>
         </div>
+
+        <!-- ── Enrolled tab ── -->
+        <div id="tab-enrolled">
+          <?php if (empty($enrolled_modules)): ?>
+          <div class="tq-empty">
+            <span class="tq-empty-icon"><i class="bi bi-trophy-fill"></i></span>
+            <div class="tq-empty-text">All modules completed — great work!</div>
+          </div>
+          <?php else: ?>
+          <div class="tq-module-grid">
+            <?php foreach ($enrolled_modules as $module):
+              $mod_id  = (int)$module['id'];
+              $chk_att = $conn->query("SELECT attempts, score, total_questions FROM exam_results WHERE username = '$user' AND module_id = $mod_id");
+              $att_row = ($chk_att && $chk_att->num_rows > 0) ? $chk_att->fetch_assoc() : null;
+              $attempts = $att_row ? (int)$att_row['attempts'] : 0;
+
+              $status = 'Not Started'; $status_class = 'tq-badge-gray';
+              if ($att_row && $att_row['total_questions'] > 0) {
+                  if ($attempts >= 3) { $status = 'Locked';  $status_class = 'tq-badge-danger'; }
+                  else                { $status = 'Retake';  $status_class = 'tq-badge-warning'; }
+              }
+              $step = $att_row ? 3 : 1;
+            ?>
+            <div class="tq-module-card" onclick="location.href='view_module.php?id=<?= $module['id'] ?>'">
+              <div style="position:relative;overflow:hidden;">
+                <img src="Images/<?= htmlspecialchars($module['image'] ?: 'Module1.jpg') ?>" class="tq-module-img">
+              </div>
+              <div class="tq-module-body">
+                <div class="tq-module-title"><?= htmlspecialchars($module['title']) ?></div>
+                <div class="tq-module-desc"><?= htmlspecialchars($module['description']) ?></div>
+                <div class="tq-module-footer">
+                  <?php if ($att_row && $att_row['total_questions'] > 0): ?>
+                  <span class="tq-badge tq-badge-navy"><i class="bi bi-arrow-repeat me-1"></i><?= $attempts ?> / 3</span>
+                  <?php endif; ?>
+                  <span class="tq-badge <?= $status_class ?>"><?= $status ?></span>
+                </div>
+              </div>
+              <div class="tq-steps">
+                <div class="tq-step <?= $step >= 1 ? 'active' : '' ?>"><span class="tq-step-num">1</span> Watch Video</div>
+                <span class="tq-step-arrow">›</span>
+                <div class="tq-step <?= $step >= 2 ? 'active' : '' ?>"><span class="tq-step-num">2</span> Take Exam</div>
+                <span class="tq-step-arrow">›</span>
+                <div class="tq-step <?= $step >= 3 ? 'done' : '' ?>"><span class="tq-step-num">3</span> Results</div>
+              </div>
+            </div>
+            <?php endforeach; ?>
+          </div>
+          <?php endif; ?>
+        </div>
+
+        <!-- ── Completed tab ── -->
+        <div id="tab-completed" style="display:none;">
+          <?php if (empty($done_modules)): ?>
+          <div class="tq-empty">
+            <span class="tq-empty-icon"><i class="bi bi-hourglass-split"></i></span>
+            <div class="tq-empty-text">No completed modules yet</div>
+            <div class="tq-empty-sub">Finish a module to see it here.</div>
+          </div>
+          <?php else: ?>
+          <div class="tq-module-grid">
+            <?php foreach ($done_modules as $module): ?>
+            <div class="tq-module-card" onclick="location.href='view_module.php?id=<?= $module['id'] ?>'">
+              <div style="position:relative;overflow:hidden;">
+                <img src="Images/<?= htmlspecialchars($module['image'] ?: 'Module1.jpg') ?>" class="tq-module-img">
+                <div style="position:absolute;inset:0;background:rgba(22,163,74,0.4);display:flex;align-items:center;justify-content:center;">
+                  <i class="bi bi-check-circle-fill" style="font-size:40px;color:#fff;"></i>
+                </div>
+              </div>
+              <div class="tq-module-body">
+                <div class="tq-module-title"><?= htmlspecialchars($module['title']) ?></div>
+                <div class="tq-module-desc"><?= htmlspecialchars($module['description']) ?></div>
+                <div class="tq-module-footer">
+                  <span class="tq-badge tq-badge-success"><i class="bi bi-check-circle-fill me-1"></i>Completed</span>
+                  <span class="tq-badge tq-badge-navy">Review</span>
+                </div>
+              </div>
+            </div>
+            <?php endforeach; ?>
+          </div>
+          <?php endif; ?>
+        </div>
+
         <?php endif; ?>
       </section>
 
@@ -399,7 +442,7 @@ $avatar = strtoupper(substr($user, 0, 1));
               </thead>
               <tbody>
                 <?php
-                $res_query  = $conn->query("SELECT r.*, m.title FROM exam_results r JOIN modules m ON r.module_id = m.id WHERE r.username = '$user' ORDER BY r.id DESC");
+                $res_query  = $conn->query("SELECT r.*, m.title FROM exam_results r JOIN modules m ON r.module_id = m.id WHERE r.username = '$user' AND r.total_questions > 0 ORDER BY r.id DESC");
                 $has_results = false;
                 while ($row = $res_query->fetch_assoc()):
                   $has_results = true;
@@ -445,5 +488,14 @@ $avatar = strtoupper(substr($user, 0, 1));
 </div>
 
 <script src="assets/js/scripts.js"></script>
+<script>
+function switchModuleTab(btn, targetId) {
+    document.querySelectorAll('.tq-mtab').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    ['tab-enrolled', 'tab-completed'].forEach(function(id) {
+        document.getElementById(id).style.display = id === targetId ? '' : 'none';
+    });
+}
+</script>
 </body>
 </html>
