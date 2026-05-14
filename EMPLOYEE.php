@@ -116,7 +116,7 @@ $avatar = strtoupper(substr($user, 0, 1));
         </li>
         <li class="tq-nav-item" id="nav-gauge">
           <a href="?tab=gauge" class="tq-nav-link" data-section="gauge">
-            <i class="bi bi-clipboard-check-fill"></i><span>Attribute Gauge R&amp;R Study</span>
+            <i class="bi bi-clipboard-check-fill"></i><span>AR&amp;R Study</span>
           </a>
         </li>
         <li class="tq-nav-item" id="nav-results">
@@ -383,7 +383,7 @@ $avatar = strtoupper(substr($user, 0, 1));
 
       <!-- ═══════════ GAUGE SECTION ═══════════ -->
       <section class="tq-section" id="section-gauge">
-        <div class="tq-section-header"><i class="bi bi-clipboard-check-fill"></i>Attribute Gauge R&amp;R Study</div>
+        <div class="tq-section-header"><i class="bi bi-clipboard-check-fill"></i>AR&amp;R Study</div>
         <div style="max-width:720px;">
           <?php
           $has_gauge = false;
